@@ -6,10 +6,12 @@ from collections import defaultdict, deque
 
 from config import (
     GRID_W, GRID_H, SEASON_LENGTH, GRASS_MAX, GRASS_GROWTH_RATE,
-    TerrainType, SpeciesKind, Season, SPECIES_PARAMS,
+    TerrainType, SpeciesKind, Season, SPECIES_PARAMS, Role,
+    CAMP_INIT_FOOD, CAMP_INIT_WOOD, CAMP_INIT_CAPACITY, CAMP_TERRITORY_RADIUS,
 )
 from ecs.components import (
     Position, Vitality, Species, Behavior, Reproduction, Health,
+    Tribe, Inventory, Structure,
 )
 
 
@@ -25,6 +27,9 @@ class World:
         self.rain_map: np.ndarray = np.zeros((GRID_W, GRID_H), dtype=np.bool_)
         self.snow_edge: int = 0
         self.pre_snow_terrain: np.ndarray | None = None  # backup before snow
+
+        # ---- Camp positions (blocking) ----
+        self.camp_positions: set[tuple[int, int]] = set()
 
         # ---- ECS storage ----
         self._next_id: int = 0
@@ -110,13 +115,64 @@ class World:
         return eid
 
     # --------------------------------------------------------
+    # Human / Camp factories
+    # --------------------------------------------------------
+    def spawn_camp(self, x: int, y: int, tribe_id: int = 0) -> int:
+        eid = self.create_entity()
+        self.add_component(eid, Position(x=x, y=y))
+        self.add_component(eid, Structure(
+            tribe_id=tribe_id,
+            food_stockpile=CAMP_INIT_FOOD,
+            wood_stockpile=CAMP_INIT_WOOD,
+            capacity=CAMP_INIT_CAPACITY,
+            territory_radius=CAMP_TERRITORY_RADIUS,
+        ))
+        self.camp_positions.add((x, y))
+        return eid
+
+    def spawn_human(self, x: int, y: int, tribe_id: int = 0,
+                    role: int = Role.HUNTER, home_camp: int = -1) -> int:
+        p = SPECIES_PARAMS[SpeciesKind.HUMAN]
+        eid = self.create_entity()
+        self.add_component(eid, Position(x=x, y=y))
+        self.add_component(eid, Vitality(
+            energy=p["init_energy"],
+            hydration=p["init_hydration"],
+            age=0,
+            max_energy=p["max_energy"],
+            max_hydration=p["max_hydration"],
+            max_age=p["max_age"],
+        ))
+        self.add_component(eid, Species(kind=SpeciesKind.HUMAN))
+        self.add_component(eid, Behavior())
+        self.add_component(eid, Reproduction(cooldown=0))
+        self.add_component(eid, Health())
+        self.add_component(eid, Tribe(tribe_id=tribe_id, role=role, home_camp=home_camp))
+        self.add_component(eid, Inventory())
+        return eid
+
+    def rebuild_camp_positions(self) -> None:
+        self.camp_positions.clear()
+        for eid, pos, struct in self.query(Position, Structure):
+            if eid in self.entities:
+                self.camp_positions.add((pos.x, pos.y))
+
+    def get_camps(self, tribe_id: int | None = None) -> list[tuple[int, Position, Structure]]:
+        result = []
+        for eid, pos, struct in self.query(Position, Structure):
+            if eid in self.entities:
+                if tribe_id is None or struct.tribe_id == tribe_id:
+                    result.append((eid, pos, struct))
+        return result
+
+    # --------------------------------------------------------
     # Grid helpers
     # --------------------------------------------------------
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < GRID_W and 0 <= y < GRID_H
 
     def is_walkable(self, x: int, y: int, kind: SpeciesKind | None = None) -> bool:
-        """Can an animal of *kind* enter cell (x, y)?"""
+        """Can an entity of *kind* enter cell (x, y)?"""
         if not self.in_bounds(x, y):
             return False
         t = self.terrain[x, y]
@@ -125,6 +181,9 @@ class World:
         if t == TerrainType.MOUNTAIN:
             # Only deer can cross mountains
             return kind == SpeciesKind.DEER
+        # Camps block animals but not humans
+        if kind != SpeciesKind.HUMAN and (x, y) in self.camp_positions:
+            return False
         return True
 
     def adjacent_water(self, x: int, y: int) -> bool:
