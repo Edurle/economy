@@ -58,7 +58,19 @@ class Tribe:
 @dataclass
 class Inventory:
     food: int = 0
-    wood: int = 0
+    resources: dict = field(default_factory=dict)  # {"wood": 5, "stone": 3}
+
+    def get_res(self, key: str) -> int:
+        return self.resources.get(key, 0)
+
+    def add_res(self, key: str, amount: int) -> None:
+        self.resources[key] = self.resources.get(key, 0) + amount
+        if self.resources[key] <= 0:
+            del self.resources[key]
+
+    @property
+    def total_resources(self) -> int:
+        return sum(self.resources.values())
 
 
 @dataclass
@@ -66,6 +78,14 @@ class Structure:
     kind: int = StructureKind.CAMP
     tribe_id: int = 0
     food_stockpile: int = 0
-    wood_stockpile: int = 0
+    stockpile: dict = field(default_factory=dict)  # {"wood": 20, "stone": 15}
     capacity: int = 8
     territory_radius: int = 8
+
+    def get_res(self, key: str) -> int:
+        return self.stockpile.get(key, 0)
+
+    def add_res(self, key: str, amount: int) -> None:
+        self.stockpile[key] = self.stockpile.get(key, 0) + amount
+        if self.stockpile[key] <= 0:
+            del self.stockpile[key]

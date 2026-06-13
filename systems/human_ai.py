@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from config import (
     GRID_W, GRID_H, State, SpeciesKind, Season, SEASON_BREED_MULT,
-    SPECIES_PARAMS, Role,
+    SPECIES_PARAMS, Role, TerrainType,
     HUMAN_PREY_MAP, HUMAN_INVENTORY_MAX, CAMP_INIT_CAPACITY,
     BUILD_WOOD_COST,
 )
@@ -80,14 +80,17 @@ class HumanAISystem:
                 behav.target = tribe.home_camp
                 continue
 
-            # 4. Gatherers: gather when inventory not full
-            if tribe.role == Role.GATHERER and (inv.food + inv.wood) < HUMAN_INVENTORY_MAX:
+            # 4. Gatherers/Miners: gather when inventory not full
+            if tribe.role in (Role.GATHERER, Role.MINER) and (inv.food + inv.total_resources) < HUMAN_INVENTORY_MAX:
                 # If carrying stuff, deposit at camp first
-                if inv.food > 0 or inv.wood > 0:
+                if inv.food > 0 or inv.total_resources > 0:
                     behav.state = State.RETURNING
                     behav.target = tribe.home_camp if camp_data else -1
                     continue
-                behav.state = State.GATHERING
+                if tribe.role == Role.MINER:
+                    behav.state = State.MINING
+                else:
+                    behav.state = State.GATHERING
                 behav.target = -1
                 continue
 
@@ -106,7 +109,7 @@ class HumanAISystem:
             if tribe.role == Role.BUILDER and camp_struct:
                 pop = world.count_species(SpeciesKind.HUMAN)
                 if (pop >= camp_struct.capacity - 2 and
-                        camp_struct.wood_stockpile >= BUILD_WOOD_COST):
+                        camp_struct.get_res("wood") >= BUILD_WOOD_COST):
                     behav.state = State.BUILDING
                     behav.target = tribe.home_camp
                     continue

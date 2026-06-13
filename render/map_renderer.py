@@ -9,6 +9,7 @@ from config import (
 )
 from ecs.world import World
 from ecs.components import Position, Species, Vitality, Health, Tribe, Structure
+from resources import deposit_key, res_name
 
 
 class TileMapRenderer:
@@ -57,6 +58,17 @@ class TileMapRenderer:
                 if overlay:
                     sx, sy = camera.world_to_screen(tx, ty)
                     surf.blit(overlay, (sx, sy))
+
+        # ---- Mineral deposits ----
+        for tx in range(x0, x1):
+            for ty in range(y0, y1):
+                dep_idx = int(world.deposits[tx, ty])
+                if dep_idx < 0:
+                    continue
+                dep_overlay = self._zoom_cache.get(f"dep_{dep_idx}")
+                if dep_overlay:
+                    sx, sy = camera.world_to_screen(tx, ty)
+                    surf.blit(dep_overlay, (sx, sy))
 
         # ---- Fire ----
         for tx in range(x0, x1):
@@ -162,6 +174,12 @@ class TileMapRenderer:
         t = TerrainType(world.terrain[gx, gy])
         lines.append(f"地形: {terrain_names.get(t, '?')}")
         lines.append(f"草量: {world.grass_level[gx, gy]:.0f}")
+        dep_idx = int(world.deposits[gx, gy])
+        if dep_idx >= 0:
+            dep_key = deposit_key(dep_idx)
+            if dep_key:
+                amt = world.deposit_amount[gx, gy]
+                lines.append(f"矿脉: {res_name(dep_key)} ({amt:.0f})")
         if world.fire_map[gx, gy] > 0:
             lines.append("着火!")
         if world.rain_map[gx, gy]:
@@ -190,6 +208,9 @@ class TileMapRenderer:
 
         for level, overlay in enumerate(assets["grass_overlay"]):
             self._zoom_cache[f"grass_{level}"] = pygame.transform.scale(overlay, (tile_px, tile_px))
+
+        for idx, dep_surf in assets.get("deposits", {}).items():
+            self._zoom_cache[f"dep_{idx}"] = pygame.transform.scale(dep_surf, (tile_px, tile_px))
 
     def _draw_rain(self, surf, tx, ty, camera):
         """Draw a few rain drops on a tile."""

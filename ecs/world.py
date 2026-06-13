@@ -7,7 +7,7 @@ from collections import defaultdict, deque
 from config import (
     GRID_W, GRID_H, SEASON_LENGTH, GRASS_MAX, GRASS_GROWTH_RATE,
     TerrainType, SpeciesKind, Season, SPECIES_PARAMS, Role,
-    CAMP_INIT_FOOD, CAMP_INIT_WOOD, CAMP_INIT_CAPACITY, CAMP_TERRITORY_RADIUS,
+    CAMP_INIT_FOOD, CAMP_INIT_CAPACITY, CAMP_TERRITORY_RADIUS,
 )
 from ecs.components import (
     Position, Vitality, Species, Behavior, Reproduction, Health,
@@ -27,6 +27,10 @@ class World:
         self.rain_map: np.ndarray = np.zeros((GRID_W, GRID_H), dtype=np.bool_)
         self.snow_edge: int = 0
         self.pre_snow_terrain: np.ndarray | None = None  # backup before snow
+
+        # ---- Resource deposits ----
+        self.deposits: np.ndarray = np.full((GRID_W, GRID_H), -1, dtype=np.int8)
+        self.deposit_amount: np.ndarray = np.zeros((GRID_W, GRID_H), dtype=np.float32)
 
         # ---- Camp positions (blocking) ----
         self.camp_positions: set[tuple[int, int]] = set()
@@ -123,7 +127,7 @@ class World:
         self.add_component(eid, Structure(
             tribe_id=tribe_id,
             food_stockpile=CAMP_INIT_FOOD,
-            wood_stockpile=CAMP_INIT_WOOD,
+            stockpile={"wood": 20},
             capacity=CAMP_INIT_CAPACITY,
             territory_radius=CAMP_TERRITORY_RADIUS,
         ))
@@ -179,8 +183,8 @@ class World:
         if t == TerrainType.WATER:
             return False
         if t == TerrainType.MOUNTAIN:
-            # Only deer can cross mountains
-            return kind == SpeciesKind.DEER
+            # Deer and humans can cross mountains
+            return kind == SpeciesKind.DEER or kind == SpeciesKind.HUMAN
         # Camps block animals but not humans
         if kind != SpeciesKind.HUMAN and (x, y) in self.camp_positions:
             return False

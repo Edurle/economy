@@ -26,8 +26,8 @@ class BuildingSystem:
                 continue
 
             # Expand camp
-            if camp_struct.wood_stockpile >= BUILD_WOOD_COST:
-                camp_struct.wood_stockpile -= BUILD_WOOD_COST
+            if camp_struct.get_res("wood") >= BUILD_WOOD_COST:
+                camp_struct.add_res("wood", -BUILD_WOOD_COST)
                 camp_struct.capacity += BUILD_CAPACITY_GAIN
                 world.log_event(
                     f"营地扩建！容量提升至 {camp_struct.capacity}"

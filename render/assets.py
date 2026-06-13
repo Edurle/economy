@@ -22,6 +22,7 @@ def generate_assets() -> dict:
         "fire_frames": _gen_fire_frames(),
         "rain_drop": _gen_rain_drop(),
         "snow_flake": _gen_snow_flake(),
+        "deposits": _gen_deposit_sprites(),
     }
 
 
@@ -284,7 +285,7 @@ def _draw_human(role: int = Role.HUNTER) -> pygame.Surface:
     skin = (220, 180, 140)
     tunic = (140, 110, 70)
     # Role accent colors
-    accents = {Role.HUNTER: (200, 50, 50), Role.GATHERER: (50, 160, 50), Role.BUILDER: (50, 80, 200)}
+    accents = {Role.HUNTER: (200, 50, 50), Role.GATHERER: (50, 160, 50), Role.BUILDER: (50, 80, 200), Role.MINER: (220, 160, 30)}
     accent = accents.get(role, (200, 50, 50))
     # Head
     pygame.draw.circle(s, skin, (8, 4), 2)
@@ -353,3 +354,30 @@ def _gen_snow_flake() -> pygame.Surface:
     s = pygame.Surface((4, 4), pygame.SRCALPHA)
     pygame.draw.circle(s, (240, 245, 255, 200), (2, 2), 1)
     return s.convert_alpha()
+
+
+# ============================================================
+# Mineral Deposit Sprites (16x16 each, per deposit type)
+# ============================================================
+def _gen_deposit_sprites() -> dict:
+    """Generate crystal/ore overlay sprites for each depositable resource."""
+    from resources import DEPOSITABLE, RESOURCE_REGISTRY
+    sprites = {}
+    for idx, key in enumerate(DEPOSITABLE):
+        rdef = RESOURCE_REGISTRY[key]
+        s = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+        color = rdef.color
+        dark = tuple(max(0, c - 50) for c in color)
+        light = tuple(min(255, c + 40) for c in color)
+        # Draw 3-4 crystal clusters scattered on the tile
+        spots = [(4, 5), (10, 4), (7, 10), (11, 11)]
+        for sx, sy in spots:
+            # Crystal shape (small diamond)
+            sz = 2
+            pts = [(sx, sy - sz), (sx + sz, sy), (sx, sy + sz), (sx - sz, sy)]
+            pygame.draw.polygon(s, color, pts)
+            pygame.draw.polygon(s, dark, pts, 1)
+            # Highlight pixel
+            s.set_at((sx, sy - 1), light)
+        sprites[idx] = s.convert_alpha()
+    return sprites

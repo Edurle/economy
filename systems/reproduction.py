@@ -88,7 +88,7 @@ class ReproductionSystem:
                 tribe = world.get_component(eid, Tribe)
                 tribe_id = tribe.tribe_id if tribe else 0
                 home_camp = tribe.home_camp if tribe else -1
-                child_role = np.random.choice([Role.HUNTER, Role.GATHERER, Role.BUILDER])
+                child_role = np.random.choice([Role.HUNTER, Role.GATHERER, Role.BUILDER, Role.MINER])
                 spawned.append(('human', birth_pos[0], birth_pos[1], tribe_id, int(child_role), home_camp))
             else:
                 spawned.append((sp.kind, birth_pos[0], birth_pos[1]))

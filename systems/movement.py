@@ -78,6 +78,9 @@ class MovementSystem:
         if state == State.GATHERING:
             return self._toward_grass(world, pos, sp, occupied)
 
+        if state == State.MINING:
+            return self._toward_deposit(world, pos, sp)
+
         if state == State.BUILDING:
             return (0, 0)
 
@@ -147,6 +150,32 @@ class MovementSystem:
             for dy in range(-radius, radius + 1):
                 nx, ny = pos.x + dx, pos.y + dy
                 if world.in_bounds(nx, ny) and world.grass_level[nx, ny] > 20:
+                    d = abs(dx) + abs(dy)
+                    if d < best_dist:
+                        best_dist = d
+                        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
+                        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
+                        if abs(dx) >= abs(dy) and sx != 0:
+                            step = (sx, 0)
+                        elif sy != 0:
+                            step = (0, sy)
+                        else:
+                            step = (0, 0)
+                        if step != (0, 0) and world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
+                            best = step
+        return best
+
+    def _toward_deposit(self, world, pos, sp):
+        """Move toward nearest mountain tile with a mineral deposit."""
+        best = (0, 0)
+        best_dist = float('inf')
+        radius = 8
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                nx, ny = pos.x + dx, pos.y + dy
+                if not world.in_bounds(nx, ny):
+                    continue
+                if world.deposits[nx, ny] >= 0 and world.deposit_amount[nx, ny] > 0:
                     d = abs(dx) + abs(dy)
                     if d < best_dist:
                         best_dist = d

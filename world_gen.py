@@ -11,9 +11,11 @@ except ImportError:
 from config import (
     GRID_W, GRID_H, TerrainType, GRASS_MAX,
     Role, TRIBE_INIT_HUNTERS, TRIBE_INIT_GATHERERS, TRIBE_INIT_BUILDERS,
+    TRIBE_INIT_MINERS,
 )
 from ecs.world import World
 from ecs.components import SpeciesKind
+from resources import DEPOSIT_CONFIG, DEPOSITABLE, depositable_index
 
 
 def _smooth_noise_fallback(x, y, seed=0):
@@ -76,6 +78,9 @@ def generate_terrain(world: World, seed: int = 42) -> None:
     # Smooth out single-cell islands of water (optional simple cleanup)
     _smooth_water(world)
 
+    # Generate mineral deposits on mountain tiles
+    _generate_deposits(world)
+
     # Initialise grass on grassland and forest tiles
     for x in range(GRID_W):
         for y in range(GRID_H):
@@ -84,6 +89,26 @@ def generate_terrain(world: World, seed: int = 42) -> None:
                 world.grass_level[x, y] = np.random.uniform(30, GRASS_MAX)
             elif t == TerrainType.FOREST:
                 world.grass_level[x, y] = np.random.uniform(40, GRASS_MAX)
+
+
+def _generate_deposits(world: World) -> None:
+    """Assign mineral deposits to mountain tiles based on DEPOSIT_CONFIG."""
+    keys = list(DEPOSIT_CONFIG.keys())
+    for x in range(GRID_W):
+        for y in range(GRID_H):
+            if world.terrain[x, y] != TerrainType.MOUNTAIN:
+                continue
+            roll = np.random.random()
+            cumulative = 0.0
+            for res_key in keys:
+                cfg = DEPOSIT_CONFIG[res_key]
+                cumulative += cfg["prob"]
+                if roll < cumulative:
+                    idx = depositable_index(res_key)
+                    world.deposits[x, y] = idx
+                    lo, hi = cfg["amount"]
+                    world.deposit_amount[x, y] = np.random.uniform(lo, hi)
+                    break
 
 
 def _smooth_water(world: World) -> None:
@@ -184,6 +209,7 @@ def _spawn_initial_tribe(world: World) -> None:
         Role.HUNTER: TRIBE_INIT_HUNTERS,
         Role.GATHERER: TRIBE_INIT_GATHERERS,
         Role.BUILDER: TRIBE_INIT_BUILDERS,
+        Role.MINER: TRIBE_INIT_MINERS,
     }
     for role, count in role_counts.items():
         for _ in range(count * 10):
