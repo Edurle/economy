@@ -7,12 +7,13 @@ The caller (main.py) is responsible for screen-to-grid conversion via Camera.
 import numpy as np
 
 from config import (
-    SpeciesKind, TerrainType, GRASS_MAX,
+    SpeciesKind, TerrainType, GRASS_MAX, Role,
 )
 from ecs.world import World
 from render.toolbar import (
     TOOL_PLACE_ANIMAL, TOOL_CHANGE_TERRAIN,
     TOOL_RAIN, TOOL_FIRE, TOOL_PLAGUE, TOOL_CLEAR,
+    TOOL_PLACE_HUMAN, TOOL_PLACE_CAMP,
 )
 
 
@@ -43,6 +44,10 @@ class GodMode:
                 plague_sys.infect_at(world, gx, gy)
         elif tool == TOOL_CLEAR:
             self._clear_area(world, gx, gy)
+        elif tool == TOOL_PLACE_HUMAN:
+            self._place_human(world, gx, gy)
+        elif tool == TOOL_PLACE_CAMP:
+            self._place_camp(world, gx, gy)
 
     def _place_animals(self, world: World, kind: SpeciesKind, gx: int, gy: int) -> None:
         for dx in range(-self.brush_size, self.brush_size + 1):
@@ -74,3 +79,26 @@ class GodMode:
                     to_remove.append(eid)
         for eid in to_remove:
             world.remove_entity(eid)
+
+    def _place_human(self, world: World, gx: int, gy: int) -> None:
+        """Place a human near (gx,gy), assigned to nearest camp or new camp."""
+        if not world.is_walkable(gx, gy, SpeciesKind.HUMAN):
+            return
+        camps = world.get_camps()
+        if camps:
+            camp_eid = camps[0][0]
+            tribe_id = camps[0][2].tribe_id
+        else:
+            camp_eid = world.spawn_camp(gx, gy)
+            tribe_id = 0
+        role = int(np.random.choice([Role.HUNTER, Role.GATHERER, Role.BUILDER]))
+        world.spawn_human(gx, gy, tribe_id=tribe_id, role=role, home_camp=camp_eid)
+
+    def _place_camp(self, world: World, gx: int, gy: int) -> None:
+        """Place a camp at (gx,gy)."""
+        if not world.in_bounds(gx, gy):
+            return
+        camps = world.get_camps()
+        tribe_id = camps[0][2].tribe_id if camps else 0
+        world.spawn_camp(gx, gy, tribe_id=tribe_id)
+        world.log_event("部落建造了新营地")
