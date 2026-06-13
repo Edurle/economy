@@ -25,7 +25,7 @@ class UIPanel:
 
         # ---- Top section: two-column layout (minimap on left, stats on right) ----
         x_right = MINI_RIGHT  # content beside minimap starts here
-        y = 8
+        y = top_margin + 8
 
         # Title (right column, beside minimap)
         title = self.font.render("生态系统监控", True, (255, 255, 255))
@@ -56,7 +56,7 @@ class UIPanel:
             y += 14
 
         # ---- Below minimap: full-width chart + events ----
-        minimap_bottom = 8 + MINI_H + 8
+        minimap_bottom = top_margin + 8 + MINI_H + 8
         y = minimap_bottom
 
         # Trend chart

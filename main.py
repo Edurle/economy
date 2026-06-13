@@ -40,7 +40,8 @@ from input.god_mode import GodMode
 
 
 PANEL_X = VIEWPORT_WIDTH
-MINIMAP_Y = 8
+TAB_HEIGHT = 28
+MINIMAP_Y = TAB_HEIGHT + 8
 MINIMAP_X = PANEL_X + 8
 PANEL_CONTENT_OFFSET = 0
 TOOLBAR_Y = PANEL_HEIGHT - 280
@@ -100,6 +101,10 @@ class Simulation:
         self.dragging_camera = False
         self.dragging_minimap = False
         self.hover_info: list[str] = []
+
+        # Tab state
+        self.current_tab = 0   # 0=监控, 1=工具
+        self._tab_rects: list[pygame.Rect] = []
 
         # Camera keys
         self._cam_keys = {"up": False, "down": False, "left": False, "right": False}
@@ -187,6 +192,8 @@ class Simulation:
             self._tick()
         elif key == pygame.K_r:
             self._reset_world()
+        elif key == pygame.K_TAB:
+            self.current_tab = 1 - self.current_tab
         elif key in (pygame.K_w, pygame.K_UP):
             self._cam_keys["up"] = True
         elif key in (pygame.K_s, pygame.K_DOWN):
@@ -216,21 +223,28 @@ class Simulation:
         mx, my = event.pos
         self.mouse_down = True
 
-        # Minimap click → move camera
-        mini_rect = pygame.Rect(MINIMAP_X, MINIMAP_Y, MINI_W, MINI_H)
-        if mini_rect.collidepoint(mx, my):
-            gx, gy = self.minimap.screen_to_grid(mx - MINIMAP_X, my - MINIMAP_Y)
-            self.camera.centre_on(gx, gy)
-            self.dragging_minimap = True
-            return
+        # Tab bar clicks
+        for i, rect in enumerate(self._tab_rects):
+            if rect.collidepoint(mx, my):
+                self.current_tab = i
+                return
 
-        # Panel area (toolbar/UI)
-        if mx >= PANEL_X:
-            if self.toolbar.handle_click(mx - PANEL_X, my, TOOLBAR_Y):
+        # Monitor tab: minimap click
+        if self.current_tab == 0:
+            mini_rect = pygame.Rect(MINIMAP_X, MINIMAP_Y, MINI_W, MINI_H)
+            if mini_rect.collidepoint(mx, my):
+                gx, gy = self.minimap.screen_to_grid(mx - MINIMAP_X, my - MINIMAP_Y)
+                self.camera.centre_on(gx, gy)
+                self.dragging_minimap = True
+                return
+
+        # Tools tab: toolbar clicks
+        if self.current_tab == 1 and mx >= PANEL_X:
+            if self.toolbar.handle_click(mx - PANEL_X, my, TAB_HEIGHT + 4):
                 self.dragging_slider = True
                 return
 
-        # Viewport area
+        # Viewport area (works on both tabs)
         if mx < VIEWPORT_WIDTH and my < VIEWPORT_HEIGHT:
             if event.button == 3:  # right-click: drag camera
                 self.dragging_camera = True
@@ -265,9 +279,9 @@ class Simulation:
             self.camera.pan_pixels(event.rel[0], event.rel[1])
             return
 
-        # Slider drag
-        if self.dragging_slider and mx >= PANEL_X:
-            self.toolbar.handle_drag_slider(mx - PANEL_X, my, TOOLBAR_Y)
+        # Slider drag (tools tab only)
+        if self.dragging_slider and self.current_tab == 1 and mx >= PANEL_X:
+            self.toolbar.handle_drag_slider(mx - PANEL_X, my, TAB_HEIGHT + 4)
             return
 
         # Continuous god-mode painting on viewport
@@ -314,23 +328,16 @@ class Simulation:
         pygame.draw.rect(self.screen, (30, 30, 35),
                          (PANEL_X, 0, PANEL_WIDTH, PANEL_HEIGHT))
 
-        # 3. UI Panel (background + stats beside minimap + chart/events below)
-        panel_surf = self.ui_panel.render(self.world, top_margin=PANEL_CONTENT_OFFSET)
-        self.screen.blit(panel_surf, (PANEL_X, 0))
+        # 3. Tab bar
+        self._draw_tabs()
 
-        # 4. Minimap (on top of UI panel background)
-        mini_surf = self.minimap.render(self.world, self.camera, PANEL_X, MINIMAP_Y)
-        self.screen.blit(mini_surf, (MINIMAP_X, MINIMAP_Y))
-        pygame.draw.rect(self.screen, (100, 100, 110),
-                         (MINIMAP_X - 1, MINIMAP_Y - 1, MINI_W + 2, MINI_H + 2), 1)
-        mini_label = self.small_font.render("小地图 (点击跳转)", True, (150, 150, 150))
-        self.screen.blit(mini_label, (MINIMAP_X, MINIMAP_Y + MINI_H + 2))
+        # 4. Tab content
+        if self.current_tab == 0:
+            self._render_monitor_tab()
+        else:
+            self._render_tools_tab()
 
-        # 5. Toolbar
-        toolbar_surf, _ = self.toolbar.render(TOOLBAR_Y)
-        self.screen.blit(toolbar_surf, (PANEL_X, TOOLBAR_Y))
-
-        # 6. Status bar
+        # 5. Status bar
         pygame.draw.rect(self.screen, (20, 20, 25),
                          (0, VIEWPORT_HEIGHT, WINDOW_WIDTH, STATUS_BAR_HEIGHT))
         pygame.draw.line(self.screen, (60, 60, 70),
@@ -340,11 +347,11 @@ class Simulation:
         status = (f"  {season_name}  |  Tick: {self.world.tick}  |  "
                   f"速度: {self.world.speed}x  |  {'暂停' if self.world.paused else '运行'}  |  "
                   f"生物: {total}  |  缩放: {self.camera.zoom:.1f}x")
-        hint = "  WASD/方向键=移动  滚轮=缩放  右键拖拽=平移  空格=暂停  R=重置"
+        hint = "  WASD=移动  滚轮=缩放  空格=暂停  Tab=切页  R=重置"
         status_surf = self.small_font.render(status + hint, True, (180, 180, 180))
         self.screen.blit(status_surf, (8, VIEWPORT_HEIGHT + 8))
 
-        # 7. Hover tooltip
+        # 6. Hover tooltip
         if self.hover_info:
             mouse_pos = pygame.mouse.get_pos()
             tx = min(mouse_pos[0] + 15, WINDOW_WIDTH - 160)
@@ -356,6 +363,37 @@ class Simulation:
                 bg.set_alpha(180)
                 self.screen.blit(bg, (tx, ty + i * 16))
                 self.screen.blit(ts, (tx + 3, ty + i * 16 + 1))
+
+    def _draw_tabs(self) -> None:
+        self._tab_rects.clear()
+        tab_names = ["监控", "工具"]
+        tab_w = (PANEL_WIDTH - 4) // len(tab_names)
+        for i, name in enumerate(tab_names):
+            tx = PANEL_X + 2 + i * tab_w
+            rect = pygame.Rect(tx, 2, tab_w - 2, TAB_HEIGHT - 2)
+            color = (60, 80, 60) if i == self.current_tab else (40, 40, 45)
+            pygame.draw.rect(self.screen, color, rect)
+            pygame.draw.rect(self.screen, (80, 80, 90), rect, 1)
+            text = self.small_font.render(name, True, (220, 220, 220))
+            self.screen.blit(text, (tx + (tab_w - text.get_width()) // 2, 8))
+            self._tab_rects.append(rect)
+
+    def _render_monitor_tab(self) -> None:
+        # UI Panel (stats beside minimap + chart + events)
+        panel_surf = self.ui_panel.render(self.world, top_margin=TAB_HEIGHT)
+        self.screen.blit(panel_surf, (PANEL_X, 0))
+
+        # Minimap (on top of UI panel background)
+        mini_surf = self.minimap.render(self.world, self.camera, PANEL_X, MINIMAP_Y)
+        self.screen.blit(mini_surf, (MINIMAP_X, MINIMAP_Y))
+        pygame.draw.rect(self.screen, (100, 100, 110),
+                         (MINIMAP_X - 1, MINIMAP_Y - 1, MINI_W + 2, MINI_H + 2), 1)
+        mini_label = self.small_font.render("小地图 (点击跳转)", True, (150, 150, 150))
+        self.screen.blit(mini_label, (MINIMAP_X, MINIMAP_Y + MINI_H + 2))
+
+    def _render_tools_tab(self) -> None:
+        toolbar_surf, _ = self.toolbar.render(TAB_HEIGHT + 4)
+        self.screen.blit(toolbar_surf, (PANEL_X, TAB_HEIGHT + 4))
 
 
 def main():
