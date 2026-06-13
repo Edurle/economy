@@ -70,6 +70,17 @@ class MovementSystem:
             if mate_pos:
                 return self._toward(pos, mate_pos.x, mate_pos.y, world, sp, occupied)
 
+        if state == State.RETURNING and behav.target >= 0:
+            target_pos = world.get_component(behav.target, Position)
+            if target_pos:
+                return self._toward(pos, target_pos.x, target_pos.y, world, sp, occupied)
+
+        if state == State.GATHERING:
+            return self._toward_grass(world, pos, sp, occupied)
+
+        if state == State.BUILDING:
+            return (0, 0)
+
         # IDLE: random walk
         return self._random_dir(world, pos, sp)
 
