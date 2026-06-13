@@ -20,6 +20,7 @@ from systems.grass import GrassSystem
 from systems.fire import FireSystem
 from systems.plague import PlagueSystem
 from systems.ai import AISystem
+from systems.human_ai import HumanAISystem
 from systems.movement import MovementSystem
 from systems.foraging import ForagingSystem
 from systems.predation import PredationSystem
@@ -27,6 +28,8 @@ from systems.hydration import HydrationSystem
 from systems.reproduction import ReproductionSystem
 from systems.aging import AgingSystem
 from systems.cleanup import CleanupSystem
+from systems.gathering import GatheringSystem
+from systems.building import BuildingSystem
 from render.camera import Camera
 from render.assets import generate_assets
 from render.map_renderer import TileMapRenderer
@@ -71,6 +74,7 @@ class Simulation:
         self.fire_sys = FireSystem()
         self.plague_sys = PlagueSystem()
         self.ai_sys = AISystem()
+        self.human_ai_sys = HumanAISystem()
         self.movement_sys = MovementSystem()
         self.foraging_sys = ForagingSystem()
         self.predation_sys = PredationSystem()
@@ -78,6 +82,8 @@ class Simulation:
         self.reproduction_sys = ReproductionSystem()
         self.aging_sys = AgingSystem()
         self.cleanup_sys = CleanupSystem()
+        self.gathering_sys = GatheringSystem()
+        self.building_sys = BuildingSystem()
 
         # Rendering
         self.assets = generate_assets()
@@ -149,14 +155,18 @@ class Simulation:
         self.grass_sys.update(w)
         self.fire_sys.update(w)
         self.plague_sys.update(w)
+        self.human_ai_sys.update(w)
         self.ai_sys.update(w)
         self.movement_sys.update(w)
         self.foraging_sys.update(w)
+        self.gathering_sys.update(w)
         self.predation_sys.update(w)
         self.hydration_sys.update(w)
+        self.building_sys.update(w)
         self.reproduction_sys.update(w)
         self.aging_sys.update(w)
         self.cleanup_sys.update(w)
+        w.rebuild_camp_positions()
         w.tick += 1
 
     # ----------------------------------------------------------------
@@ -289,6 +299,7 @@ class Simulation:
         self.world = World()
         generate_terrain(self.world, seed=np.random.randint(0, 99999))
         populate_initial(self.world)
+        self.world.rebuild_camp_positions()
         self.minimap._terrain_dirty = True
 
     # ----------------------------------------------------------------
