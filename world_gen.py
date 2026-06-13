@@ -8,7 +8,10 @@ try:
 except ImportError:
     HAS_NOISE = False
 
-from config import GRID_W, GRID_H, TerrainType, GRASS_MAX
+from config import (
+    GRID_W, GRID_H, TerrainType, GRASS_MAX,
+    Role, TRIBE_INIT_HUNTERS, TRIBE_INIT_GATHERERS, TRIBE_INIT_BUILDERS,
+)
 from ecs.world import World
 from ecs.components import SpeciesKind
 
@@ -141,3 +144,54 @@ def populate_initial(world: World) -> None:
                     world.spawn_animal(kind, x, y)
                     count += 1
                     placed += 1
+
+    # Human tribe: spawn camp + initial humans
+    _spawn_initial_tribe(world)
+
+
+def _spawn_initial_tribe(world: World) -> None:
+    """Find a good camp location and spawn the initial human tribe."""
+    best_x, best_y = GRID_W // 2, GRID_H // 2
+    best_score = -1
+
+    for _ in range(200):
+        x = np.random.randint(4, GRID_W - 4)
+        y = np.random.randint(4, GRID_H - 4)
+        if world.terrain[x, y] != TerrainType.GRASSLAND:
+            continue
+        if (x, y) in world.camp_positions:
+            continue
+        # Score: near water, on grassland
+        score = 0
+        for dx in range(-3, 4):
+            for dy in range(-3, 4):
+                nx, ny = x + dx, y + dy
+                if world.in_bounds(nx, ny):
+                    if world.terrain[nx, ny] == TerrainType.WATER:
+                        score += 3
+                    elif world.terrain[nx, ny] == TerrainType.GRASSLAND:
+                        score += 1
+                    elif world.terrain[nx, ny] == TerrainType.FOREST:
+                        score += 2
+        if score > best_score:
+            best_score = score
+            best_x, best_y = x, y
+
+    camp_eid = world.spawn_camp(best_x, best_y, tribe_id=0)
+    world.log_event(f"部落营地建立于 ({best_x}, {best_y})")
+
+    role_counts = {
+        Role.HUNTER: TRIBE_INIT_HUNTERS,
+        Role.GATHERER: TRIBE_INIT_GATHERERS,
+        Role.BUILDER: TRIBE_INIT_BUILDERS,
+    }
+    for role, count in role_counts.items():
+        for _ in range(count * 10):
+            if count <= 0:
+                break
+            dx = np.random.randint(-2, 3)
+            dy = np.random.randint(-2, 3)
+            x, y = best_x + dx, best_y + dy
+            if world.is_walkable(x, y, SpeciesKind.HUMAN):
+                world.spawn_human(x, y, tribe_id=0, role=role, home_camp=camp_eid)
+                count -= 1
