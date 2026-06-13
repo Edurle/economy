@@ -25,12 +25,12 @@ class UIPanel:
 
         # ---- Top section: two-column layout (minimap on left, stats on right) ----
         x_right = MINI_RIGHT  # content beside minimap starts here
-        y = top_margin + 8
+        y = top_margin + 10
 
         # Title (right column, beside minimap)
         title = self.font.render("生态系统监控", True, (255, 255, 255))
         surf.blit(title, (x_right, y))
-        y += 24
+        y += 28
 
         # Season + tick + speed
         season_name = SEASON_NAMES[Season(world.season)]
@@ -38,49 +38,49 @@ class UIPanel:
         info = f"{season_name}  Tick:{world.tick}  {world.speed}x {state_str}"
         info_surf = self.small_font.render(info, True, (200, 200, 200))
         surf.blit(info_surf, (x_right, y))
-        y += 16
+        y += 20
 
         # Population counts (right column, beside minimap)
         header = self.small_font.render("--- 种群 ---", True, (150, 150, 150))
         surf.blit(header, (x_right, y))
-        y += 15
+        y += 18
 
         for kind in SpeciesKind:
             params = SPECIES_PARAMS[kind]
             count = world.count_species(kind)
             color = params["color"]
-            pygame.draw.rect(surf, color, (x_right, y + 1, 10, 10))
-            label = f"{params['name']}:{count}"
+            pygame.draw.rect(surf, color, (x_right, y + 2, 12, 12))
+            label = f"{params['name']}: {count}"
             text = self.small_font.render(label, True, (220, 220, 220))
-            surf.blit(text, (x_right + 14, y))
-            y += 14
+            surf.blit(text, (x_right + 18, y))
+            y += 18
 
         # ---- Below minimap: full-width chart + events ----
-        minimap_bottom = top_margin + 8 + MINI_H + 8
+        minimap_bottom = top_margin + 10 + MINI_H + 12
         y = minimap_bottom
 
         # Trend chart
         chart_title = self.small_font.render("--- 种群趋势 ---", True, (150, 150, 150))
         surf.blit(chart_title, (8, y))
-        y += 15
-        self.chart_rect = pygame.Rect(8, y, PANEL_WIDTH - 16, 120)
+        y += 18
+        self.chart_rect = pygame.Rect(8, y, PANEL_WIDTH - 16, 140)
         self._draw_chart(surf, world, y)
 
         # Event log
-        y = self.chart_rect.bottom + 6
+        y = self.chart_rect.bottom + 8
         log_title = self.small_font.render("--- 事件日志 ---", True, (150, 150, 150))
         surf.blit(log_title, (8, y))
-        y += 15
-        recent = list(world.events_log)[-5:]
+        y += 18
+        recent = list(world.events_log)[-6:]
         for tick, msg in recent:
             log_surf = self.small_font.render(f"[{tick}] {msg}", True, (180, 180, 140))
             surf.blit(log_surf, (8, y))
-            y += 15
+            y += 17
 
         return surf
 
     def _draw_chart(self, surf: pygame.Surface, world: World, y_offset: int) -> None:
-        rect = pygame.Rect(8, y_offset, PANEL_WIDTH - 16, 120)
+        rect = pygame.Rect(8, y_offset, PANEL_WIDTH - 16, 140)
         pygame.draw.rect(surf, (20, 20, 25), rect)
         pygame.draw.rect(surf, (60, 60, 70), rect, 1)
 

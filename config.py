@@ -5,12 +5,12 @@ from enum import IntEnum
 # ============================================================
 # Window / Rendering
 # ============================================================
-WINDOW_WIDTH = 1200
+WINDOW_WIDTH = 1440
 WINDOW_HEIGHT = 800
 TILE_SIZE = 16                 # native tile sprite size in pixels
-VIEWPORT_WIDTH = 800           # camera viewport area on screen
+VIEWPORT_WIDTH = 920           # camera viewport area on screen
 VIEWPORT_HEIGHT = 770          # leave room for status bar
-PANEL_WIDTH = WINDOW_WIDTH - VIEWPORT_WIDTH   # 400
+PANEL_WIDTH = WINDOW_WIDTH - VIEWPORT_WIDTH   # 520
 PANEL_HEIGHT = VIEWPORT_HEIGHT                 # 770
 STATUS_BAR_HEIGHT = WINDOW_HEIGHT - VIEWPORT_HEIGHT  # 30
 FPS = 60

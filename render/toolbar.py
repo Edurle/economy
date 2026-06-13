@@ -67,60 +67,64 @@ class Toolbar:
         surf = pygame.Surface((PANEL_WIDTH, PANEL_HEIGHT - y_start))
         surf.fill((25, 25, 30))
         y = 4
+        BTN_W = 116
+        BTN_STEP = 124
 
         # --- Tools ---
         header = self.small_font.render("--- 工具 ---", True, (150, 150, 150))
         surf.blit(header, (8, y))
-        y += 20
+        y += 24
 
         self._tool_buttons.clear()
         x = 8
         for tid, label in TOOL_LABELS.items():
-            btn_rect = pygame.Rect(x, y, 56, 24)
+            btn_rect = pygame.Rect(x, y, BTN_W, 28)
             color = (80, 120, 80) if self.current_tool == tid else (50, 50, 55)
             pygame.draw.rect(surf, color, btn_rect)
             pygame.draw.rect(surf, (100, 100, 110), btn_rect, 1)
             text = self.small_font.render(label, True, (220, 220, 220))
-            surf.blit(text, (x + 4, y + 4))
+            tx = x + (BTN_W - text.get_width()) // 2
+            surf.blit(text, (tx, y + 5))
             self._tool_buttons.append([btn_rect, tid, label])
-            x += 62
-            if x + 56 > PANEL_WIDTH - 8:
+            x += BTN_STEP
+            if x + BTN_W > PANEL_WIDTH - 8:
                 x = 8
-                y += 28
+                y += 32
         y += 20
 
         # --- Species selector (for place animal tool) ---
         if self.current_tool == TOOL_PLACE_ANIMAL:
             header = self.small_font.render("选择物种:", True, (150, 150, 150))
             surf.blit(header, (8, y))
-            y += 22
+            y += 24
             self._species_buttons.clear()
             x = 8
             for kind in SpeciesKind:
                 params = SPECIES_PARAMS[kind]
-                btn_rect = pygame.Rect(x, y, 56, 26)
+                btn_rect = pygame.Rect(x, y, BTN_W, 30)
                 selected = self.selected_species == kind
                 color = params["color"] if selected else (50, 50, 55)
                 pygame.draw.rect(surf, color, btn_rect)
                 pygame.draw.rect(surf, (100, 100, 110), btn_rect, 1)
                 text = self.small_font.render(params["name"], True, (20, 20, 20) if selected else (220, 220, 220))
-                surf.blit(text, (x + 4, y + 5))
+                tx = x + (BTN_W - text.get_width()) // 2
+                surf.blit(text, (tx, y + 6))
                 self._species_buttons.append([btn_rect, kind])
-                x += 62
-                if x + 56 > PANEL_WIDTH - 8:
+                x += BTN_STEP
+                if x + BTN_W > PANEL_WIDTH - 8:
                     x = 8
-                    y += 30
+                    y += 34
             y += 20
 
         # --- Terrain selector (for change terrain tool) ---
         if self.current_tool == TOOL_CHANGE_TERRAIN:
             header = self.small_font.render("选择地形:", True, (150, 150, 150))
             surf.blit(header, (8, y))
-            y += 22
+            y += 24
             self._terrain_buttons.clear()
             x = 8
             for t_val in TerrainType:
-                btn_rect = pygame.Rect(x, y, 56, 26)
+                btn_rect = pygame.Rect(x, y, BTN_W, 30)
                 selected = self.selected_terrain == t_val
                 color = TERRAIN_COLORS[t_val] if selected else (50, 50, 55)
                 pygame.draw.rect(surf, color, btn_rect)
@@ -128,12 +132,13 @@ class Toolbar:
                 label = TERRAIN_LABELS[t_val]
                 text_color = (20, 20, 20) if selected else (220, 220, 220)
                 text = self.small_font.render(label, True, text_color)
-                surf.blit(text, (x + 4, y + 5))
+                tx = x + (BTN_W - text.get_width()) // 2
+                surf.blit(text, (tx, y + 6))
                 self._terrain_buttons.append([btn_rect, t_val])
-                x += 62
-                if x + 56 > PANEL_WIDTH - 8:
+                x += BTN_STEP
+                if x + BTN_W > PANEL_WIDTH - 8:
                     x = 8
-                    y += 30
+                    y += 34
             y += 20
 
         # --- Sliders ---

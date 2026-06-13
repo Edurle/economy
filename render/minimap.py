@@ -11,9 +11,9 @@ from ecs.world import World
 from ecs.components import Position, Species
 
 
-MINI_TILE = 2   # pixels per grid cell on minimap
-MINI_W = GRID_W * MINI_TILE   # 128
-MINI_H = GRID_H * MINI_TILE   # 128
+MINI_TILE = 3   # pixels per grid cell on minimap
+MINI_W = GRID_W * MINI_TILE   # 192
+MINI_H = GRID_H * MINI_TILE   # 192
 MINI_RIGHT = MINI_W + 16      # x offset for content beside minimap
 
 

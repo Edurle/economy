@@ -57,11 +57,11 @@ class Simulation:
         # Fonts
         font_path = os.path.join(os.path.dirname(__file__), "fonts", "noto_sc.otf")
         if os.path.exists(font_path):
-            self.font = pygame.font.Font(font_path, 18)
-            self.small_font = pygame.font.Font(font_path, 14)
+            self.font = pygame.font.Font(font_path, 20)
+            self.small_font = pygame.font.Font(font_path, 15)
         else:
-            self.font = pygame.font.SysFont("Arial", 18)
-            self.small_font = pygame.font.SysFont("Arial", 14)
+            self.font = pygame.font.SysFont("Arial", 20)
+            self.small_font = pygame.font.SysFont("Arial", 15)
 
         # World
         self.world = World()
