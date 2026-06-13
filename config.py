@@ -45,6 +45,7 @@ class SpeciesKind(IntEnum):
     DEER   = 2
     FOX    = 3
     WOLF   = 4
+    HUMAN  = 5
 
 class State(IntEnum):
     IDLE           = 0
@@ -53,6 +54,17 @@ class State(IntEnum):
     HUNTING        = 3
     MATING         = 4
     SEEKING_WATER  = 5
+    RETURNING      = 9
+    GATHERING      = 10
+    BUILDING       = 11
+
+class Role(IntEnum):
+    HUNTER   = 0
+    GATHERER = 1
+    BUILDER  = 2
+
+class StructureKind(IntEnum):
+    CAMP = 0
 
 class Season(IntEnum):
     SPRING = 0
@@ -145,6 +157,22 @@ SPECIES_PARAMS = {
         "food_gain":     0,
         "population_cap": 50,
         "color":         (180, 50, 50),
+        "size":          2,
+    },
+    SpeciesKind.HUMAN: {
+        "name":          "人类",
+        "init_energy":   100,
+        "max_energy":    150,
+        "init_hydration": 70,
+        "max_hydration": 100,
+        "max_age":       120,
+        "vision":        6,
+        "speed":         1,
+        "breed_energy":  80,
+        "breed_cooldown": 20,
+        "food_gain":     0,
+        "population_cap": 30,
+        "color":         (180, 140, 100),
         "size":          2,
     },
 }
@@ -254,3 +282,34 @@ TERRAIN_COLORS = {
 
 FIRE_COLOR = (255, 80, 0)
 ASH_COLOR = (80, 60, 50)
+
+# ============================================================
+# Human / Tribe Parameters
+# ============================================================
+CAMP_INIT_FOOD = 50
+CAMP_INIT_WOOD = 20
+CAMP_INIT_CAPACITY = 8
+CAMP_TERRITORY_RADIUS = 8
+HUMAN_INVENTORY_MAX = 20
+GATHER_FOOD_AMOUNT = 3
+GATHER_GRASS_COST = 5
+GATHER_WOOD_AMOUNT = 5
+BUILD_CAPACITY_GAIN = 2
+BUILD_WOOD_COST = 10
+HUMAN_EAT_AMOUNT = 10
+HUMAN_EAT_ENERGY_GAIN = 40
+CAMP_FOOD_TRANSFER = 0.3
+
+HUMAN_PREY_MAP = {
+    SpeciesKind.RABBIT: 0.80,
+    SpeciesKind.SHEEP: 0.60,
+    SpeciesKind.DEER: 0.40,
+    SpeciesKind.FOX: 0.50,
+    SpeciesKind.WOLF: 0.30,
+}
+WOLF_HUNT_HUMAN_CHANCE = 0.25
+
+TRIBE_INIT_POPULATION = 5
+TRIBE_INIT_HUNTERS = 2
+TRIBE_INIT_GATHERERS = 2
+TRIBE_INIT_BUILDERS = 1
