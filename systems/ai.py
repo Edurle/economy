@@ -51,6 +51,8 @@ class AISystem:
         for eid, pos, vit, sp, behav, repro in animals:
             if eid not in world.entities:
                 continue
+            if sp.kind == SpeciesKind.HUMAN:
+                continue
             params = SPECIES_PARAMS[sp.kind]
             vision = params["vision"]
             max_e = vit.max_energy
