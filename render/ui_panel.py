@@ -25,12 +25,12 @@ class UIPanel:
 
         # ---- Top section: two-column layout (minimap on left, stats on right) ----
         x_right = MINI_RIGHT  # content beside minimap starts here
-        y = top_margin + 10
+        y = top_margin + 12
 
         # Title (right column, beside minimap)
         title = self.font.render("生态系统监控", True, (255, 255, 255))
         surf.blit(title, (x_right, y))
-        y += 28
+        y += 34
 
         # Season + tick + speed
         season_name = SEASON_NAMES[Season(world.season)]
@@ -38,12 +38,12 @@ class UIPanel:
         info = f"{season_name}  Tick:{world.tick}  {world.speed}x {state_str}"
         info_surf = self.small_font.render(info, True, (200, 200, 200))
         surf.blit(info_surf, (x_right, y))
-        y += 20
+        y += 26
 
         # Population counts (right column, beside minimap)
         header = self.small_font.render("--- 种群 ---", True, (150, 150, 150))
         surf.blit(header, (x_right, y))
-        y += 18
+        y += 24
 
         for kind in SpeciesKind:
             params = SPECIES_PARAMS[kind]
@@ -53,29 +53,29 @@ class UIPanel:
             label = f"{params['name']}: {count}"
             text = self.small_font.render(label, True, (220, 220, 220))
             surf.blit(text, (x_right + 18, y))
-            y += 18
+            y += 22
 
         # ---- Below minimap: full-width chart + events ----
-        minimap_bottom = top_margin + 10 + MINI_H + 12
+        minimap_bottom = top_margin + 12 + MINI_H + 20
         y = minimap_bottom
 
         # Trend chart
         chart_title = self.small_font.render("--- 种群趋势 ---", True, (150, 150, 150))
         surf.blit(chart_title, (8, y))
-        y += 18
+        y += 24
         self.chart_rect = pygame.Rect(8, y, PANEL_WIDTH - 16, 140)
         self._draw_chart(surf, world, y)
 
         # Event log
-        y = self.chart_rect.bottom + 8
+        y = self.chart_rect.bottom + 16
         log_title = self.small_font.render("--- 事件日志 ---", True, (150, 150, 150))
         surf.blit(log_title, (8, y))
-        y += 18
+        y += 24
         recent = list(world.events_log)[-6:]
         for tick, msg in recent:
             log_surf = self.small_font.render(f"[{tick}] {msg}", True, (180, 180, 140))
             surf.blit(log_surf, (8, y))
-            y += 17
+            y += 20
 
         return surf
 
