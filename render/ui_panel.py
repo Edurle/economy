@@ -15,7 +15,7 @@ class UIPanel:
     def __init__(self, font: pygame.font.Font, small_font: pygame.font.Font):
         self.font = font
         self.small_font = small_font
-        self.chart_rect = pygame.Rect(8, 250, PANEL_WIDTH - 16, 160)
+        self.chart_rect = pygame.Rect(8, 250, PANEL_WIDTH - 16, 80)
         self.top_margin = 0
 
     def render(self, world: World, top_margin: int = 0) -> pygame.Surface:
@@ -27,58 +27,53 @@ class UIPanel:
         # Title
         title = self.font.render("生态系统监控", True, (255, 255, 255))
         surf.blit(title, (8, y))
-        y += 28
+        y += 26
 
-        # Season and tick
+        # Season + tick + speed (combined to save vertical space)
         season_name = SEASON_NAMES[Season(world.season)]
-        info = f"季节: {season_name}  Tick: {world.tick}"
+        state_str = "暂停" if world.paused else "运行"
+        info = f"{season_name}  Tick:{world.tick}  {world.speed}x {state_str}"
         info_surf = self.small_font.render(info, True, (200, 200, 200))
         surf.blit(info_surf, (8, y))
         y += 18
 
-        speed_text = f"速度: {world.speed}x  {'暂停' if world.paused else '运行'}"
-        speed_surf = self.small_font.render(speed_text, True, (180, 180, 180))
-        surf.blit(speed_surf, (8, y))
-        y += 20
-
-        # Population counts
+        # Population counts (compact rows)
         header = self.small_font.render("--- 种群数量 ---", True, (150, 150, 150))
         surf.blit(header, (8, y))
-        y += 18
+        y += 16
 
         for kind in SpeciesKind:
             params = SPECIES_PARAMS[kind]
             count = world.count_species(kind)
             color = params["color"]
-            # Color swatch
-            pygame.draw.rect(surf, color, (8, y + 2, 12, 12))
+            pygame.draw.rect(surf, color, (8, y + 1, 12, 12))
             label = f"{params['name']}: {count}/{params['population_cap']}"
             text = self.small_font.render(label, True, (220, 220, 220))
             surf.blit(text, (26, y))
-            y += 18
+            y += 16
 
-        # Trend chart
-        y += 4
+        # Trend chart (compact)
+        y += 2
         chart_title = self.small_font.render("--- 种群趋势 ---", True, (150, 150, 150))
         surf.blit(chart_title, (8, y))
-        self.chart_rect = pygame.Rect(8, y + 18, PANEL_WIDTH - 16, 160)
-        self._draw_chart(surf, world, y + 18)
+        self.chart_rect = pygame.Rect(8, y + 15, PANEL_WIDTH - 16, 80)
+        self._draw_chart(surf, world, y + 15)
 
-        # Event log
-        y = self.chart_rect.bottom + 8
+        # Event log (fewer entries)
+        y = self.chart_rect.bottom + 6
         log_title = self.small_font.render("--- 事件日志 ---", True, (150, 150, 150))
         surf.blit(log_title, (8, y))
-        y += 18
-        recent = list(world.events_log)[-6:]
+        y += 15
+        recent = list(world.events_log)[-4:]
         for tick, msg in recent:
             log_surf = self.small_font.render(f"[{tick}] {msg}", True, (180, 180, 140))
             surf.blit(log_surf, (8, y))
-            y += 16
+            y += 15
 
         return surf
 
     def _draw_chart(self, surf: pygame.Surface, world: World, y_offset: int) -> None:
-        rect = pygame.Rect(8, y_offset, PANEL_WIDTH - 16, 160)
+        rect = pygame.Rect(8, y_offset, PANEL_WIDTH - 16, 80)
         pygame.draw.rect(surf, (20, 20, 25), rect)
         pygame.draw.rect(surf, (60, 60, 70), rect, 1)
 
