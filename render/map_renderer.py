@@ -5,10 +5,10 @@ import numpy as np
 
 from config import (
     GRID_W, GRID_H, TILE_SIZE, VIEWPORT_WIDTH, VIEWPORT_HEIGHT,
-    TerrainType, SpeciesKind, SPECIES_PARAMS, GRASS_MAX,
+    TerrainType, SpeciesKind, SPECIES_PARAMS, GRASS_MAX, Role,
 )
 from ecs.world import World
-from ecs.components import Position, Species, Vitality, Health
+from ecs.components import Position, Species, Vitality, Health, Tribe, Structure
 
 
 class TileMapRenderer:
@@ -82,7 +82,29 @@ class TileMapRenderer:
                 if world.rain_map[tx, ty]:
                     self._draw_rain(surf, tx, ty, camera)
 
-        # ---- Animals (culled to viewport) ----
+        # ---- Camps ----
+        camp_sprite_base = assets.get("camp")
+        for eid, pos, struct in world.query(Position, Structure):
+            if eid not in world.entities:
+                continue
+            if not (x0 <= pos.x < x1 and y0 <= pos.y < y1):
+                continue
+            sx, sy = camera.world_to_screen(pos.x, pos.y)
+            if camp_sprite_base:
+                sprite = camp_sprite_base
+                if tile_px != TILE_SIZE:
+                    sprite = pygame.transform.scale(sprite, (tile_px, tile_px))
+                surf.blit(sprite, (sx, sy))
+            # Food stockpile bar
+            bar_w = tile_px
+            bar_h = max(2, tile_px // 8)
+            bar_x, bar_y = sx, sy - bar_h - 1
+            ratio = min(1.0, struct.food_stockpile / 100.0)
+            pygame.draw.rect(surf, (40, 40, 40), (bar_x, bar_y, bar_w, bar_h))
+            pygame.draw.rect(surf, (50, 200, 50), (bar_x, bar_y, int(bar_w * ratio), bar_h))
+
+        # ---- Animals + Humans (culled to viewport) ----
+        human_sprites = assets.get("humans", {})
         for eid, pos, sp in world.query(Position, Species):
             if eid not in world.entities:
                 continue
@@ -92,13 +114,18 @@ class TileMapRenderer:
             if sx < -tile_px or sx >= VIEWPORT_WIDTH or sy < -tile_px or sy >= VIEWPORT_HEIGHT:
                 continue
 
-            health = world.get_component(eid, Health)
-            if health and health.diseased:
-                sprite_pool = assets["animals_diseased"]
+            if sp.kind == SpeciesKind.HUMAN:
+                tribe = world.get_component(eid, Tribe)
+                role = int(tribe.role) if tribe else 0
+                sprite = human_sprites.get(role)
             else:
-                sprite_pool = assets["animals"]
+                health = world.get_component(eid, Health)
+                if health and health.diseased:
+                    sprite_pool = assets["animals_diseased"]
+                else:
+                    sprite_pool = assets["animals"]
+                sprite = sprite_pool.get(sp.kind)
 
-            sprite = sprite_pool.get(sp.kind)
             if sprite:
                 if tile_px != TILE_SIZE:
                     sprite = pygame.transform.scale(sprite, (tile_px, tile_px))
