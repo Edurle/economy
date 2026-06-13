@@ -7,7 +7,7 @@ No external image files required.
 import numpy as np
 import pygame
 
-from config import TILE_SIZE, TerrainType, SpeciesKind, TERRAIN_COLORS
+from config import TILE_SIZE, TerrainType, SpeciesKind, Role, TERRAIN_COLORS
 
 
 def generate_assets() -> dict:
@@ -17,6 +17,8 @@ def generate_assets() -> dict:
         "grass_overlay": _gen_grass_overlays(),
         "animals": _gen_animal_sprites(),
         "animals_diseased": _gen_animal_sprites_diseased(),
+        "humans": _gen_human_sprites(),
+        "camp": _draw_camp(),
         "fire_frames": _gen_fire_frames(),
         "rain_drop": _gen_rain_drop(),
         "snow_flake": _gen_snow_flake(),
@@ -265,6 +267,56 @@ def _gen_animal_sprites_diseased() -> dict:
         pygame.draw.circle(tinted, (180, 0, 200, 120), (8, 8), 7, 1)
         sprites[kind] = tinted.convert_alpha()
     return sprites
+
+
+# ============================================================
+# Human Sprites (16x16 each, per role)
+# ============================================================
+def _gen_human_sprites() -> dict:
+    sprites = {}
+    for role in Role:
+        sprites[int(role)] = _draw_human(role)
+    return sprites
+
+
+def _draw_human(role: int = Role.HUNTER) -> pygame.Surface:
+    s = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+    skin = (220, 180, 140)
+    tunic = (140, 110, 70)
+    # Role accent colors
+    accents = {Role.HUNTER: (200, 50, 50), Role.GATHERER: (50, 160, 50), Role.BUILDER: (50, 80, 200)}
+    accent = accents.get(role, (200, 50, 50))
+    # Head
+    pygame.draw.circle(s, skin, (8, 4), 2)
+    # Body (tunic)
+    pygame.draw.rect(s, tunic, (6, 6, 5, 5))
+    # Accent stripe (role indicator)
+    pygame.draw.rect(s, accent, (6, 7, 5, 1))
+    # Arms
+    pygame.draw.line(s, skin, (5, 8), (5, 10), 1)
+    pygame.draw.line(s, skin, (11, 8), (11, 10), 1)
+    # Legs
+    pygame.draw.line(s, tunic, (7, 11), (7, 14), 1)
+    pygame.draw.line(s, tunic, (9, 11), (9, 14), 1)
+    return s.convert_alpha()
+
+
+def _draw_camp() -> pygame.Surface:
+    s = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+    tent_color = (160, 120, 70)
+    tent_dark = (110, 80, 45)
+    fire_orange = (255, 140, 0)
+    fire_yellow = (255, 220, 0)
+    # Tent (triangle)
+    pygame.draw.polygon(s, tent_color, [(3, 13), (8, 4), (13, 13)])
+    pygame.draw.polygon(s, tent_dark, [(3, 13), (8, 4), (13, 13)], 1)
+    # Tent entrance
+    pygame.draw.polygon(s, tent_dark, [(6, 13), (8, 9), (10, 13)])
+    # Campfire
+    pygame.draw.circle(s, fire_orange, (12, 12), 2)
+    s.set_at((12, 11), fire_yellow)
+    s.set_at((11, 12), fire_yellow)
+    return s.convert_alpha()
 
 
 # ============================================================
