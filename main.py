@@ -41,8 +41,8 @@ from input.god_mode import GodMode
 
 PANEL_X = VIEWPORT_WIDTH
 MINIMAP_Y = 8
-MINIMAP_X = PANEL_X + (PANEL_WIDTH - MINI_W) // 2
-PANEL_CONTENT_OFFSET = MINIMAP_Y + MINI_H + 12   # where UIPanel content starts
+MINIMAP_X = PANEL_X + 8
+PANEL_CONTENT_OFFSET = 0
 TOOLBAR_Y = PANEL_HEIGHT - 280
 
 
@@ -314,17 +314,17 @@ class Simulation:
         pygame.draw.rect(self.screen, (30, 30, 35),
                          (PANEL_X, 0, PANEL_WIDTH, PANEL_HEIGHT))
 
-        # 3. Minimap
+        # 3. UI Panel (background + stats beside minimap + chart/events below)
+        panel_surf = self.ui_panel.render(self.world, top_margin=PANEL_CONTENT_OFFSET)
+        self.screen.blit(panel_surf, (PANEL_X, 0))
+
+        # 4. Minimap (on top of UI panel background)
         mini_surf = self.minimap.render(self.world, self.camera, PANEL_X, MINIMAP_Y)
         self.screen.blit(mini_surf, (MINIMAP_X, MINIMAP_Y))
         pygame.draw.rect(self.screen, (100, 100, 110),
                          (MINIMAP_X - 1, MINIMAP_Y - 1, MINI_W + 2, MINI_H + 2), 1)
         mini_label = self.small_font.render("小地图 (点击跳转)", True, (150, 150, 150))
         self.screen.blit(mini_label, (MINIMAP_X, MINIMAP_Y + MINI_H + 2))
-
-        # 4. UI Panel (below minimap)
-        panel_surf = self.ui_panel.render(self.world, top_margin=PANEL_CONTENT_OFFSET)
-        self.screen.blit(panel_surf, (PANEL_X, 0))
 
         # 5. Toolbar
         toolbar_surf, _ = self.toolbar.render(TOOLBAR_Y)
