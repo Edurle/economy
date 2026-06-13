@@ -3,10 +3,10 @@
 import numpy as np
 
 from config import (
-    SpeciesKind, SPECIES_PARAMS, OFFSPRING_ENERGY_RATIO,
+    SpeciesKind, SPECIES_PARAMS, OFFSPRING_ENERGY_RATIO, Role,
 )
 from ecs.world import World
-from ecs.components import Position, Vitality, Species, Behavior, Reproduction
+from ecs.components import Position, Vitality, Species, Behavior, Reproduction, Tribe
 
 
 class ReproductionSystem:
@@ -83,8 +83,20 @@ class ReproductionSystem:
             bred.add(eid)
             bred.add(mate_eid)
 
-            # Spawn offspring
-            spawned.append((sp.kind, birth_pos[0], birth_pos[1]))
+            # Spawn offspring — store extra info for humans
+            if sp.kind == SpeciesKind.HUMAN:
+                tribe = world.get_component(eid, Tribe)
+                tribe_id = tribe.tribe_id if tribe else 0
+                home_camp = tribe.home_camp if tribe else -1
+                child_role = np.random.choice([Role.HUNTER, Role.GATHERER, Role.BUILDER])
+                spawned.append(('human', birth_pos[0], birth_pos[1], tribe_id, int(child_role), home_camp))
+            else:
+                spawned.append((sp.kind, birth_pos[0], birth_pos[1]))
 
-        for kind, x, y in spawned:
-            world.spawn_animal(kind, x, y, is_offspring=True)
+        for item in spawned:
+            if item[0] == 'human':
+                _, x, y, tribe_id, role, home_camp = item
+                world.spawn_human(x, y, tribe_id=tribe_id, role=role, home_camp=home_camp)
+            else:
+                kind, x, y = item
+                world.spawn_animal(kind, x, y, is_offspring=True)
