@@ -145,10 +145,6 @@ def _carve_rivers(world: World, elevation: np.ndarray) -> None:
 
         path = []
         for _step in range(300):
-            # Already water — river reached sea/lake
-            if world.terrain[cx, cy] == TerrainType.WATER:
-                break
-
             # Find lowest neighbour (8-directional for natural curves)
             best_nx, best_ny = cx, cy
             best_elev = elevation[cx, cy]
@@ -159,7 +155,6 @@ def _carve_rivers(world: World, elevation: np.ndarray) -> None:
                     nx, ny = cx + dx, cy + dy
                     if not world.in_bounds(nx, ny):
                         continue
-                    # Don't flow uphill through mountains
                     e = elevation[nx, ny]
                     if e < best_elev:
                         best_elev = e
@@ -175,7 +170,12 @@ def _carve_rivers(world: World, elevation: np.ndarray) -> None:
                 break
 
             cx, cy = best_nx, best_ny
-            # Carve water along the path (widen rivers slightly on plains)
+
+            # Reached existing natural water — river flows into sea/lake
+            if world.terrain[cx, cy] == TerrainType.WATER:
+                break
+
+            # Carve water along the path
             world.terrain[cx, cy] = TerrainType.WATER
             path.append((cx, cy))
 
