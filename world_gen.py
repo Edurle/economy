@@ -11,7 +11,7 @@ except ImportError:
 from config import (
     GRID_W, GRID_H, TerrainType, GRASS_MAX,
     Role, TRIBE_INIT_HUNTERS, TRIBE_INIT_GATHERERS, TRIBE_INIT_BUILDERS,
-    TRIBE_INIT_MINERS,
+    TRIBE_INIT_MINERS, TRIBE_INIT_SCHOLARS,
 )
 from ecs.world import World
 from ecs.components import SpeciesKind
@@ -210,6 +210,7 @@ def _spawn_initial_tribe(world: World) -> None:
         Role.GATHERER: TRIBE_INIT_GATHERERS,
         Role.BUILDER: TRIBE_INIT_BUILDERS,
         Role.MINER: TRIBE_INIT_MINERS,
+        Role.SCHOLAR: TRIBE_INIT_SCHOLARS,
     }
     for role, count in role_counts.items():
         for _ in range(count * 10):

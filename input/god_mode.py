@@ -91,7 +91,7 @@ class GodMode:
         else:
             camp_eid = world.spawn_camp(gx, gy)
             tribe_id = 0
-        role = int(np.random.choice([Role.HUNTER, Role.GATHERER, Role.BUILDER, Role.MINER]))
+        role = int(np.random.choice([Role.HUNTER, Role.GATHERER, Role.BUILDER, Role.MINER, Role.SCHOLAR]))
         world.spawn_human(gx, gy, tribe_id=tribe_id, role=role, home_camp=camp_eid)
 
     def _place_camp(self, world: World, gx: int, gy: int) -> None:

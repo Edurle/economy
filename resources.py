@@ -116,52 +116,98 @@ def deposit_key(idx: int) -> str | None:
 
 
 # ============================================================
-# Recipe System (skeleton — filled in tech tree phase)
+# Recipe System
 # ============================================================
 @dataclass(frozen=True)
 class RecipeDef:
     key: str
     name: str
-    inputs: Dict[str, int]        # {"iron_ore": 2, "coal": 1}
-    outputs: Dict[str, int]       # {"iron_ingot": 1}
-    required_tech: str = ""       # tech node key, "" = always available
-    craft_time: int = 5           # ticks to complete
-    workstation: str = ""         # building type needed, "" = craft anywhere
+    inputs: Dict[str, int]
+    outputs: Dict[str, int]
+    required_tech: str = ""
+    craft_time: int = 5
+    workstation: str = ""
 
 
-RECIPE_REGISTRY: Dict[str, RecipeDef] = {}
-# Example (future):
-# RECIPE_REGISTRY["smelt_iron"] = RecipeDef(
-#     "smelt_iron", "冶炼铁锭",
-#     inputs={"iron_ore": 2, "coal": 1},
-#     outputs={"iron_ingot": 1},
-#     required_tech="iron_working",
-#     craft_time=10,
-#     workstation="smelter",
-# )
+RECIPE_REGISTRY: Dict[str, RecipeDef] = {
+    "craft_plank": RecipeDef(
+        "craft_plank", "制作木板",
+        inputs={"wood": 2}, outputs={"plank": 1},
+        required_tech="stone_tools", craft_time=5,
+    ),
+    "craft_brick": RecipeDef(
+        "craft_brick", "烧制砖块",
+        inputs={"stone": 3, "coal": 1}, outputs={"brick": 1},
+        required_tech="stone_tools", craft_time=8,
+    ),
+    "smelt_copper": RecipeDef(
+        "smelt_copper", "冶炼铜锭",
+        inputs={"copper_ore": 2, "coal": 1}, outputs={"copper_ingot": 1},
+        required_tech="copper_working", craft_time=10,
+    ),
+    "smelt_gold": RecipeDef(
+        "smelt_gold", "冶炼金锭",
+        inputs={"gold_ore": 2, "coal": 1}, outputs={"gold_ingot": 1},
+        required_tech="copper_working", craft_time=10,
+    ),
+    "smelt_iron": RecipeDef(
+        "smelt_iron", "冶炼铁锭",
+        inputs={"iron_ore": 2, "coal": 2}, outputs={"iron_ingot": 1},
+        required_tech="iron_working", craft_time=12,
+    ),
+    "smelt_steel": RecipeDef(
+        "smelt_steel", "炼钢",
+        inputs={"iron_ingot": 1, "coal": 3}, outputs={"steel": 1},
+        required_tech="steel_making", craft_time=20,
+    ),
+}
 
 
 # ============================================================
-# Tech Tree (skeleton — filled in tech tree phase)
+# Tech Tree
 # ============================================================
 @dataclass(frozen=True)
 class TechNode:
     key: str
     name: str
     description: str
-    cost: Dict[str, int]          # research cost in resources
-    requires: Tuple[str, ...]     # prerequisite tech keys
-    unlocks_recipes: Tuple[str, ...]  # recipe keys unlocked
+    research_cost: int             # research points needed
+    requires: Tuple[str, ...]      # prerequisite tech keys
+    unlocks_recipes: Tuple[str, ...]
     tier: int
 
 
-TECH_TREE: Dict[str, TechNode] = {}
-# Example (future):
-# TECH_TREE["bronze_working"] = TechNode(
-#     "bronze_working", "青铜冶炼",
-#     "解锁铜锭和锡锭冶炼为青铜",
-#     cost={"copper_ingot": 10, "research_points": 20},
-#     requires=("copper_working",),
-#     unlocks_recipes=("smelt_bronze",),
-#     tier=1,
-# )
+TECH_TREE: Dict[str, TechNode] = {
+    "stone_tools": TechNode(
+        "stone_tools", "石器时代",
+        "掌握基础工具制作，可以加工木材和石材",
+        research_cost=20,
+        requires=(),
+        unlocks_recipes=("craft_plank", "craft_brick"),
+        tier=0,
+    ),
+    "copper_working": TechNode(
+        "copper_working", "铜器时代",
+        "掌握铜和贵金属的冶炼技术",
+        research_cost=50,
+        requires=("stone_tools",),
+        unlocks_recipes=("smelt_copper", "smelt_gold"),
+        tier=1,
+    ),
+    "iron_working": TechNode(
+        "iron_working", "铁器时代",
+        "掌握铁的冶炼技术，更坚固的材料",
+        research_cost=100,
+        requires=("copper_working",),
+        unlocks_recipes=("smelt_iron",),
+        tier=2,
+    ),
+    "steel_making": TechNode(
+        "steel_making", "钢铁时代",
+        "掌握炼钢技术，最强韧的金属材料",
+        research_cost=200,
+        requires=("iron_working",),
+        unlocks_recipes=("smelt_steel",),
+        tier=3,
+    ),
+}

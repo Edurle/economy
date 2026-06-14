@@ -285,7 +285,7 @@ def _draw_human(role: int = Role.HUNTER) -> pygame.Surface:
     skin = (220, 180, 140)
     tunic = (140, 110, 70)
     # Role accent colors
-    accents = {Role.HUNTER: (200, 50, 50), Role.GATHERER: (50, 160, 50), Role.BUILDER: (50, 80, 200), Role.MINER: (220, 160, 30)}
+    accents = {Role.HUNTER: (200, 50, 50), Role.GATHERER: (50, 160, 50), Role.BUILDER: (50, 80, 200), Role.MINER: (220, 160, 30), Role.SCHOLAR: (160, 80, 200)}
     accent = accents.get(role, (200, 50, 50))
     # Head
     pygame.draw.circle(s, skin, (8, 4), 2)

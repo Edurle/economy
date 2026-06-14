@@ -94,6 +94,19 @@ class HumanAISystem:
                 behav.target = -1
                 continue
 
+            # 4.5. Scholars: stay at camp to research
+            if tribe.role == Role.SCHOLAR:
+                if camp_data:
+                    camp_pos = camp_data[1]
+                    dist = abs(pos.x - camp_pos.x) + abs(pos.y - camp_pos.y)
+                    if dist > 1:
+                        behav.state = State.RETURNING
+                        behav.target = tribe.home_camp
+                        continue
+                behav.state = State.IDLE
+                behav.target = -1
+                continue
+
             # 5. Hunters: hunt when camp food is low
             if tribe.role == Role.HUNTER:
                 camp_food = camp_struct.food_stockpile if camp_struct else 0

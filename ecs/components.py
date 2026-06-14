@@ -81,6 +81,9 @@ class Structure:
     stockpile: dict = field(default_factory=dict)  # {"wood": 20, "stone": 15}
     capacity: int = 8
     territory_radius: int = 8
+    research_points: float = 0.0
+    researched_tech: set = field(default_factory=set)   # {"stone_tools", ...}
+    craft_timers: dict = field(default_factory=dict)    # {"smelt_iron": 3}
 
     def get_res(self, key: str) -> int:
         return self.stockpile.get(key, 0)
