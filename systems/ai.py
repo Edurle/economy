@@ -12,24 +12,26 @@ from ecs.components import Position, Vitality, Species, Behavior, Reproduction
 
 
 class SpatialIndex:
-    """Grid-based spatial hash for O(1) neighbour lookups."""
+    """Grid-based spatial hash for O(1) neighbour lookups.
+    Entries store (eid, kind_int, x, y) to avoid per-query component lookups."""
 
     def __init__(self):
-        self.grid: dict[tuple[int, int], list[int]] = defaultdict(list)
+        self.grid: dict[tuple[int, int], list[tuple[int, int, int, int]]] = defaultdict(list)
 
     def clear(self) -> None:
         self.grid.clear()
 
-    def insert(self, eid: int, x: int, y: int) -> None:
-        self.grid[(x, y)].append(eid)
+    def insert(self, eid: int, kind: int, x: int, y: int) -> None:
+        self.grid[(x, y)].append((eid, kind, x, y))
 
     def query_radius(self, x: int, y: int, radius: int):
-        """Yield entity ids within *radius* cells of (x, y)."""
+        """Yield (eid, kind, ex, ey) tuples within *radius* cells of (x, y)."""
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
                 cell = (x + dx, y + dy)
-                if cell in self.grid:
-                    yield from self.grid[cell]
+                bucket = self.grid.get(cell)
+                if bucket:
+                    yield from bucket
 
 
 class AISystem:
@@ -40,11 +42,14 @@ class AISystem:
         self.spatial.clear()
         for eid, pos, vit, sp in world.get_entities_with(Position, Vitality, Species):
             if eid in world.entities:
-                self.spatial.insert(eid, pos.x, pos.y)
+                self.spatial.insert(eid, int(sp.kind), pos.x, pos.y)
+
+    _AI_PERIOD = 3   # re-decide every N ticks (staggered per-entity)
 
     def update(self, world: World) -> None:
         self._rebuild_index(world)
         breed_mult = SEASON_BREED_MULT[Season(world.season)]
+        tick = world.tick
 
         animals = world.query(Position, Vitality, Species, Behavior, Reproduction)
 
@@ -52,6 +57,9 @@ class AISystem:
             if eid not in world.entities:
                 continue
             if sp.kind == SpeciesKind.HUMAN:
+                continue
+            # Stagger: each entity re-decides every _AI_PERIOD ticks
+            if (eid + tick) % self._AI_PERIOD != 0:
                 continue
             params = SPECIES_PARAMS[sp.kind]
             vision = params["vision"]
@@ -112,18 +120,15 @@ class AISystem:
     def _find_nearest(self, world: World, x: int, y: int, radius: int,
                       kinds: set[SpeciesKind], exclude: int = -1) -> int | None:
         """Find nearest entity of one of *kinds* within *radius* of (x, y)."""
+        kinds_int = {int(k) for k in kinds}
         best = None
         best_dist = float('inf')
-        for eid in self.spatial.query_radius(x, y, radius):
-            if eid == exclude or eid not in world.entities:
+        for eid, kind, ex, ey in self.spatial.query_radius(x, y, radius):
+            if eid == exclude:
                 continue
-            sp = world.get_component(eid, Species)
-            if sp is None or sp.kind not in kinds:
+            if kind not in kinds_int:
                 continue
-            pos = world.get_component(eid, Position)
-            if pos is None:
-                continue
-            d = abs(pos.x - x) + abs(pos.y - y)
+            d = abs(ex - x) + abs(ey - y)
             if d < best_dist:
                 best_dist = d
                 best = eid

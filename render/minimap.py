@@ -4,21 +4,26 @@ import numpy as np
 import pygame
 
 from config import (
-    GRID_W, GRID_H, VIEWPORT_WIDTH, VIEWPORT_HEIGHT, TILE_SIZE,
+    GRID_W, GRID_H, VIEWPORT_WIDTH, VIEWPORT_HEIGHT,
     TerrainType, SpeciesKind, SPECIES_PARAMS, TERRAIN_COLORS,
 )
 from ecs.world import World
 from ecs.components import Position, Species
 
 
-MINI_TILE = 3   # pixels per grid cell on minimap
-MINI_W = GRID_W * MINI_TILE   # 192
-MINI_H = GRID_H * MINI_TILE   # 192
+MINI_TILE = max(1, 192 // max(GRID_W, GRID_H))   # auto-scale pixels per cell
+MINI_W = GRID_W * MINI_TILE
+MINI_H = GRID_H * MINI_TILE
 MINI_RIGHT = MINI_W + 16      # x offset for content beside minimap
+
+# Pre-build a lookup table: terrain int -> RGB uint8 array (3,)
+_TERRAIN_LUT = np.zeros((6, 3), dtype=np.uint8)
+for _t, _c in TERRAIN_COLORS.items():
+    _TERRAIN_LUT[int(_t)] = _c
 
 
 class Minimap:
-    """Renders a 128x128 overview of the entire 64x64 world."""
+    """Renders a scaled overview of the entire world."""
 
     def __init__(self):
         self.surface = pygame.Surface((MINI_W, MINI_H))
@@ -67,15 +72,20 @@ class Minimap:
         return pygame.Rect(0, 0, MINI_W, MINI_H)
 
     def _draw_terrain(self, world: World) -> None:
-        """Draw terrain colors to the cached terrain surface."""
-        for tx in range(GRID_W):
-            for ty in range(GRID_H):
-                t_val = int(world.terrain[tx, ty])
-                color = TERRAIN_COLORS[TerrainType(t_val)]
-                # Darken if no grass on grassland/forest
-                if t_val in (TerrainType.GRASSLAND, TerrainType.FOREST):
-                    g = world.grass_level[tx, ty]
-                    factor = 0.4 + 0.6 * (g / 100.0)
-                    color = tuple(int(c * factor) for c in color)
-                px, py = tx * MINI_TILE, ty * MINI_TILE
-                self._terrain_surf.fill(color, (px, py, MINI_TILE, MINI_TILE))
+        """Draw terrain colors to the cached terrain surface (vectorized)."""
+        colors = _TERRAIN_LUT[world.terrain].copy()  # (GRID_W, GRID_H, 3)
+
+        # Darken low-grass areas on grassland/forest
+        grass_mask = ((world.terrain == int(TerrainType.GRASSLAND)) |
+                      (world.terrain == int(TerrainType.FOREST)))
+        if grass_mask.any():
+            factor = 0.4 + 0.6 * np.clip(world.grass_level.astype(np.float32) / 100.0, 0, 1)
+            for c in range(3):
+                layer = colors[:, :, c].astype(np.float32)
+                layer[grass_mask] *= factor[grass_mask]
+                colors[:, :, c] = layer.astype(np.uint8)
+
+        if MINI_TILE > 1:
+            colors = np.repeat(np.repeat(colors, MINI_TILE, axis=0), MINI_TILE, axis=1)
+
+        pygame.surfarray.blit_array(self._terrain_surf, colors)

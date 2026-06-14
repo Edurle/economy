@@ -3,7 +3,7 @@
 import numpy as np
 
 from config import (
-    GRID_W, GRID_H, TerrainType, Season,
+    TerrainType, Season,
     FIRE_DROUGHT_TICKS, FIRE_GRASS_THRESHOLD, FIRE_IGNITE_CHANCE,
     FIRE_SPREAD_CHANCE, FIRE_DURATION_MIN, FIRE_DURATION_MAX,
     FIRE_ANIMAL_DEATH_CHANCE, FIRE_ASH_DURATION,
@@ -21,15 +21,21 @@ class FireSystem:
         can_ignite = (Season(world.season) == Season.SUMMER and
                       world.drought_timer >= FIRE_DROUGHT_TICKS)
 
-        # Ignition
+        # Ignition (sparse — only roll dice for flammable tiles)
         if can_ignite:
-            is_grass = world.terrain == TerrainType.GRASSLAND
-            flammable = is_grass & (world.grass_level >= FIRE_GRASS_THRESHOLD) & (world.fire_map == 0)
-            ignite_mask = (np.random.random((GRID_W, GRID_H)) < FIRE_IGNITE_CHANCE) & flammable
-            world.fire_map[ignite_mask] = np.random.randint(FIRE_DURATION_MIN, FIRE_DURATION_MAX + 1,
-                                                            size=ignite_mask.sum()).astype(np.int8)
-            if ignite_mask.any():
-                world.log_event("草地起火！")
+            flammable = ((world.terrain == int(TerrainType.GRASSLAND)) &
+                         (world.grass_level >= FIRE_GRASS_THRESHOLD) &
+                         (world.fire_map == 0))
+            n_flammable = int(flammable.sum())
+            if n_flammable > 0:
+                flammable_coords = np.argwhere(flammable)
+                ignite_mask = np.random.random(n_flammable) < FIRE_IGNITE_CHANCE
+                ignite_coords = flammable_coords[ignite_mask]
+                if len(ignite_coords) > 0:
+                    world.fire_map[ignite_coords[:, 0], ignite_coords[:, 1]] = (
+                        np.random.randint(FIRE_DURATION_MIN, FIRE_DURATION_MAX + 1,
+                                          size=len(ignite_coords))).astype(np.int8)
+                    world.log_event("草地起火！")
 
         # Spread fire
         burning = world.fire_map > 0

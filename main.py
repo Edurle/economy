@@ -94,6 +94,13 @@ class Simulation:
         # Rendering
         self.assets = generate_assets()
         self.camera = Camera()
+        # Centre camera on tribe camp
+        self.world.rebuild_camp_positions()
+        camps = self.world.get_camps()
+        if camps:
+            _, camp_pos, _ = camps[0]
+            self.camera.centre_on(camp_pos.x, camp_pos.y)
+            self.camera.offset[:] = self.camera._target_offset
         self.map_renderer = TileMapRenderer()
         self.minimap = Minimap()
         self.ui_panel = UIPanel(self.font, self.small_font)
@@ -322,6 +329,12 @@ class Simulation:
         populate_initial(self.world)
         self.world.rebuild_camp_positions()
         self.minimap._terrain_dirty = True
+        # Centre camera on tribe camp
+        camps = self.world.get_camps()
+        if camps:
+            _, camp_pos, _ = camps[0]
+            self.camera.centre_on(camp_pos.x, camp_pos.y)
+            self.camera.offset[:] = self.camera._target_offset
 
     # ----------------------------------------------------------------
     # Rendering

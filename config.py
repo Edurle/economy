@@ -24,8 +24,8 @@ CAMERA_EDGE_SCROLL = False     # edge scrolling (optional)
 # ============================================================
 # World
 # ============================================================
-GRID_W = 64
-GRID_H = 64
+GRID_W = 256
+GRID_H = 256
 SEASON_LENGTH = 50            # ticks per season
 
 # ============================================================
@@ -179,6 +179,11 @@ SPECIES_PARAMS = {
         "size":          2,
     },
 }
+
+# Scale population caps by world area ratio (auto-adjusts for any grid size)
+_POP_SCALE = max(1, (GRID_W * GRID_H) // (64 * 64 * 4))
+for _params in SPECIES_PARAMS.values():
+    _params["population_cap"] *= _POP_SCALE
 
 # Herbivores (eat grass)
 HERBIVORES = {SpeciesKind.RABBIT, SpeciesKind.SHEEP, SpeciesKind.DEER}

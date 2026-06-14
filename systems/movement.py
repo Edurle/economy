@@ -116,80 +116,87 @@ class MovementSystem:
         return best
 
     def _toward_water(self, world, pos, sp):
-        """Move toward nearest water cell."""
-        best = (0, 0)
-        best_dist = float('inf')
+        """Move toward nearest water-adjacent cell."""
         radius = 8
-        for dx in range(-radius, radius + 1):
-            for dy in range(-radius, radius + 1):
-                nx, ny = pos.x + dx, pos.y + dy
-                if world.in_bounds(nx, ny) and world.terrain[nx, ny] == TerrainType.WATER:
-                    d = abs(dx) + abs(dy)
-                    if d < best_dist:
-                        best_dist = d
-                        # Step toward it
-                        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
-                        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
-                        # Prefer x if closer in x, else y
-                        if abs(dx) >= abs(dy) and sx != 0:
-                            step = (sx, 0)
-                        elif sy != 0:
-                            step = (0, sy)
-                        else:
-                            step = (sx, sy)
-                        if world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
-                            best = step
-        return best
+        x0 = max(0, pos.x - radius)
+        x1 = min(GRID_W, pos.x + radius + 1)
+        y0 = max(0, pos.y - radius)
+        y1 = min(GRID_H, pos.y + radius + 1)
+        sub = world.water_adjacent[x0:x1, y0:y1]
+        coords = np.argwhere(sub)
+        if len(coords) == 0:
+            return (0, 0)
+        cx, cy = pos.x - x0, pos.y - y0
+        dists = np.abs(coords[:, 0] - cx) + np.abs(coords[:, 1] - cy)
+        nearest = coords[dists.argmin()]
+        dx, dy = int(nearest[0]) - cx, int(nearest[1]) - cy
+        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
+        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
+        if abs(dx) >= abs(dy) and sx != 0:
+            step = (sx, 0)
+        elif sy != 0:
+            step = (0, sy)
+        else:
+            step = (0, 0)
+        if step != (0, 0) and world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
+            return step
+        return (0, 0)
 
     def _toward_grass(self, world, pos, sp, occupied):
         """Move toward nearest cell with grass_level > 20."""
-        best = (0, 0)
-        best_dist = float('inf')
         radius = 5
-        for dx in range(-radius, radius + 1):
-            for dy in range(-radius, radius + 1):
-                nx, ny = pos.x + dx, pos.y + dy
-                if world.in_bounds(nx, ny) and world.grass_level[nx, ny] > 20:
-                    d = abs(dx) + abs(dy)
-                    if d < best_dist:
-                        best_dist = d
-                        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
-                        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
-                        if abs(dx) >= abs(dy) and sx != 0:
-                            step = (sx, 0)
-                        elif sy != 0:
-                            step = (0, sy)
-                        else:
-                            step = (0, 0)
-                        if step != (0, 0) and world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
-                            best = step
-        return best
+        x0 = max(0, pos.x - radius)
+        x1 = min(GRID_W, pos.x + radius + 1)
+        y0 = max(0, pos.y - radius)
+        y1 = min(GRID_H, pos.y + radius + 1)
+        sub = world.grass_level[x0:x1, y0:y1]
+        coords = np.argwhere(sub > 20)
+        if len(coords) == 0:
+            return (0, 0)
+        cx, cy = pos.x - x0, pos.y - y0
+        dists = np.abs(coords[:, 0] - cx) + np.abs(coords[:, 1] - cy)
+        nearest = coords[dists.argmin()]
+        dx, dy = int(nearest[0]) - cx, int(nearest[1]) - cy
+        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
+        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
+        if abs(dx) >= abs(dy) and sx != 0:
+            step = (sx, 0)
+        elif sy != 0:
+            step = (0, sy)
+        else:
+            step = (0, 0)
+        if step != (0, 0) and world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
+            return step
+        return (0, 0)
 
     def _toward_deposit(self, world, pos, sp):
         """Move toward nearest mountain tile with a mineral deposit."""
-        best = (0, 0)
-        best_dist = float('inf')
         radius = 8
-        for dx in range(-radius, radius + 1):
-            for dy in range(-radius, radius + 1):
-                nx, ny = pos.x + dx, pos.y + dy
-                if not world.in_bounds(nx, ny):
-                    continue
-                if world.deposits[nx, ny] >= 0 and world.deposit_amount[nx, ny] > 0:
-                    d = abs(dx) + abs(dy)
-                    if d < best_dist:
-                        best_dist = d
-                        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
-                        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
-                        if abs(dx) >= abs(dy) and sx != 0:
-                            step = (sx, 0)
-                        elif sy != 0:
-                            step = (0, sy)
-                        else:
-                            step = (0, 0)
-                        if step != (0, 0) and world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
-                            best = step
-        return best
+        x0 = max(0, pos.x - radius)
+        x1 = min(GRID_W, pos.x + radius + 1)
+        y0 = max(0, pos.y - radius)
+        y1 = min(GRID_H, pos.y + radius + 1)
+        dep_sub = world.deposits[x0:x1, y0:y1]
+        amt_sub = world.deposit_amount[x0:x1, y0:y1]
+        mask = (dep_sub >= 0) & (amt_sub > 0)
+        coords = np.argwhere(mask)
+        if len(coords) == 0:
+            return (0, 0)
+        cx, cy = pos.x - x0, pos.y - y0
+        dists = np.abs(coords[:, 0] - cx) + np.abs(coords[:, 1] - cy)
+        nearest = coords[dists.argmin()]
+        dx, dy = int(nearest[0]) - cx, int(nearest[1]) - cy
+        sx = 1 if dx > 0 else (-1 if dx < 0 else 0)
+        sy = 1 if dy > 0 else (-1 if dy < 0 else 0)
+        if abs(dx) >= abs(dy) and sx != 0:
+            step = (sx, 0)
+        elif sy != 0:
+            step = (0, sy)
+        else:
+            step = (0, 0)
+        if step != (0, 0) and world.is_walkable(pos.x + step[0], pos.y + step[1], sp.kind):
+            return step
+        return (0, 0)
 
     def _random_dir(self, world, pos, sp):
         dirs = list(self.DIRS)

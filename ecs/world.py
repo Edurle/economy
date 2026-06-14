@@ -35,6 +35,10 @@ class World:
         # ---- Camp positions (blocking) ----
         self.camp_positions: set[tuple[int, int]] = set()
 
+        # ---- Cached adjacency grids (rebuilt when terrain changes) ----
+        self.water_adjacent: np.ndarray = np.zeros((GRID_W, GRID_H), dtype=np.bool_)
+        self._terrain_flat: list[int] | None = None   # flat Python list copy for fast lookups
+
         # ---- ECS storage ----
         self._next_id: int = 0
         self.entities: set[int] = set()
@@ -190,13 +194,39 @@ class World:
             return False
         return True
 
+    def rebuild_water_adjacency(self) -> None:
+        """Recompute the cached water-adjacency grid and flat terrain list."""
+        self._terrain_flat = self.terrain.ravel().tolist()
+        water = self.terrain == int(TerrainType.WATER)
+        adj = np.zeros((GRID_W, GRID_H), dtype=np.bool_)
+        adj[1:, :]  |= water[:-1, :]
+        adj[:-1, :] |= water[1:, :]
+        adj[:, 1:]  |= water[:, :-1]
+        adj[:, :-1] |= water[:, 1:]
+        self.water_adjacent = adj
+
+    def _terrain_at(self, x: int, y: int) -> int:
+        """Fast terrain lookup using flat Python list."""
+        if self._terrain_flat is not None:
+            return self._terrain_flat[x * GRID_H + y]
+        return int(self.terrain[x, y])
+
+    def is_walkable(self, x: int, y: int, kind: SpeciesKind | None = None) -> bool:
+        """Can an entity of *kind* enter cell (x, y)?"""
+        if not (0 <= x < GRID_W and 0 <= y < GRID_H):
+            return False
+        t = self._terrain_at(x, y)
+        if t == int(TerrainType.WATER):
+            return False
+        if t == int(TerrainType.MOUNTAIN):
+            return kind == SpeciesKind.DEER or kind == SpeciesKind.HUMAN
+        if kind != SpeciesKind.HUMAN and (x, y) in self.camp_positions:
+            return False
+        return True
+
     def adjacent_water(self, x: int, y: int) -> bool:
-        """Is any 4-neighbour cell water?"""
-        for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-            nx, ny = x + dx, y + dy
-            if self.in_bounds(nx, ny) and self.terrain[nx, ny] == TerrainType.WATER:
-                return True
-        return False
+        """Is any 4-neighbour cell water? (uses cached grid)"""
+        return bool(self.water_adjacent[x, y])
 
     def count_species(self, kind: SpeciesKind) -> int:
         """Count living entities of a given species (cached per tick)."""

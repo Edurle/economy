@@ -36,20 +36,19 @@ def _noise2d(x, y, seed=0, scale=0.06):
 
 def generate_terrain(world: World, seed: int = 42) -> None:
     """Fill world.terrain with natural terrain using layered noise."""
+    scale_factor = 64.0 / GRID_W
     elevation = np.zeros((GRID_W, GRID_H), dtype=np.float32)
     moisture = np.zeros((GRID_W, GRID_H), dtype=np.float32)
 
     for x in range(GRID_W):
         for y in range(GRID_H):
-            # Large-scale elevation (scale adjusted for 64x64 grid)
-            e = (_noise2d(x, y, seed=seed, scale=0.08) +
-                 0.5 * _noise2d(x, y, seed=seed + 1, scale=0.16) +
-                 0.25 * _noise2d(x, y, seed=seed + 2, scale=0.32))
+            e = (_noise2d(x, y, seed=seed, scale=0.08 * scale_factor) +
+                 0.5 * _noise2d(x, y, seed=seed + 1, scale=0.16 * scale_factor) +
+                 0.25 * _noise2d(x, y, seed=seed + 2, scale=0.32 * scale_factor))
             elevation[x, y] = e
 
-            # Moisture / humidity
-            m = (_noise2d(x, y, seed=seed + 100, scale=0.1) +
-                 0.5 * _noise2d(x, y, seed=seed + 101, scale=0.2))
+            m = (_noise2d(x, y, seed=seed + 100, scale=0.1 * scale_factor) +
+                 0.5 * _noise2d(x, y, seed=seed + 101, scale=0.2 * scale_factor))
             moisture[x, y] = m
 
     # Normalise
@@ -78,6 +77,9 @@ def generate_terrain(world: World, seed: int = 42) -> None:
     # Smooth out single-cell islands of water (optional simple cleanup)
     _smooth_water(world)
 
+    # Carve rivers from mountains to the sea
+    _carve_rivers(world, elevation)
+
     # Generate mineral deposits on mountain tiles
     _generate_deposits(world)
 
@@ -89,6 +91,9 @@ def generate_terrain(world: World, seed: int = 42) -> None:
                 world.grass_level[x, y] = np.random.uniform(30, GRASS_MAX)
             elif t == TerrainType.FOREST:
                 world.grass_level[x, y] = np.random.uniform(40, GRASS_MAX)
+
+    # Build cached adjacency grids
+    world.rebuild_water_adjacency()
 
 
 def _generate_deposits(world: World) -> None:
@@ -124,13 +129,76 @@ def _smooth_water(world: World) -> None:
                 world.terrain[x, y] = TerrainType.GRASSLAND
 
 
+def _carve_rivers(world: World, elevation: np.ndarray) -> None:
+    """Carve rivers flowing downhill from mountains to the sea."""
+    rng = np.random.default_rng()
+    n_rivers = max(10, GRID_W // 12)
+
+    # Find mountain tiles as potential river sources
+    mountain_tiles = np.argwhere(world.terrain == TerrainType.MOUNTAIN)
+    if len(mountain_tiles) == 0:
+        return
+
+    for _ in range(n_rivers):
+        idx = rng.integers(len(mountain_tiles))
+        cx, cy = int(mountain_tiles[idx][0]), int(mountain_tiles[idx][1])
+
+        path = []
+        for _step in range(300):
+            # Already water — river reached sea/lake
+            if world.terrain[cx, cy] == TerrainType.WATER:
+                break
+
+            # Find lowest neighbour (8-directional for natural curves)
+            best_nx, best_ny = cx, cy
+            best_elev = elevation[cx, cy]
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    nx, ny = cx + dx, cy + dy
+                    if not world.in_bounds(nx, ny):
+                        continue
+                    # Don't flow uphill through mountains
+                    e = elevation[nx, ny]
+                    if e < best_elev:
+                        best_elev = e
+                        best_nx, best_ny = nx, ny
+
+            if best_nx == cx and best_ny == cy:
+                # Stuck in local minimum — create a small lake
+                for dx in range(-1, 2):
+                    for dy in range(-1, 2):
+                        nx, ny = cx + dx, cy + dy
+                        if world.in_bounds(nx, ny) and world.terrain[nx, ny] != TerrainType.MOUNTAIN:
+                            world.terrain[nx, ny] = TerrainType.WATER
+                break
+
+            cx, cy = best_nx, best_ny
+            # Carve water along the path (widen rivers slightly on plains)
+            world.terrain[cx, cy] = TerrainType.WATER
+            path.append((cx, cy))
+
+        # Widen river on flat terrain (every 3rd tile gets a side branch)
+        if len(path) > 5:
+            for i, (px, py) in enumerate(path):
+                if i % 3 == 0 and world.terrain[px, py] == TerrainType.WATER:
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = px + dx, py + dy
+                        if world.in_bounds(nx, ny) and world.terrain[nx, ny] == TerrainType.GRASSLAND:
+                            if rng.random() < 0.3:
+                                world.terrain[nx, ny] = TerrainType.WATER
+
+
 def populate_initial(world: World) -> None:
     """Scatter initial populations. Predators are clustered so they can find mates."""
-    # Herbivores: scattered
+    pop_scale = max(1, (GRID_W * GRID_H) // (64 * 64 * 4))  # 4 for 256x256
+
+    # Herbivores: scattered (scale with area)
     herb_counts = {
-        SpeciesKind.RABBIT: 40,
-        SpeciesKind.SHEEP: 30,
-        SpeciesKind.DEER: 12,
+        SpeciesKind.RABBIT: 40 * pop_scale,
+        SpeciesKind.SHEEP: 30 * pop_scale,
+        SpeciesKind.DEER: 12 * pop_scale,
     }
     for kind, n in herb_counts.items():
         placed = 0
@@ -143,10 +211,11 @@ def populate_initial(world: World) -> None:
                 world.spawn_animal(kind, x, y)
                 placed += 1
 
-    # Predators: clustered in groups so they can find mates
+    # Predators: clustered in groups (gentler scaling — apex predators)
+    pred_scale = max(1, pop_scale // 2)  # 8 for 256x256
     predator_clusters = [
-        (SpeciesKind.FOX, 3, 5),     # 3 groups of 5 foxes = 15
-        (SpeciesKind.WOLF, 2, 5),    # 2 groups of 5 wolves = 10
+        (SpeciesKind.FOX, 3 * pred_scale, 5),
+        (SpeciesKind.WOLF, 2 * pred_scale, 5),
     ]
     for kind, n_clusters, group_size in predator_clusters:
         placed = 0

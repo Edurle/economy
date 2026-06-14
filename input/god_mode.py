@@ -68,6 +68,7 @@ class GodMode:
                     elif terrain in (TerrainType.WATER, TerrainType.DESERT,
                                      TerrainType.MOUNTAIN, TerrainType.SNOW):
                         world.grass_level[x, y] = 0
+        world.rebuild_water_adjacency()
 
     def _clear_area(self, world: World, gx: int, gy: int) -> None:
         from ecs.components import Position, Species
