@@ -8,6 +8,7 @@ from config import (
     GRID_W, GRID_H, SEASON_LENGTH, GRASS_MAX, GRASS_GROWTH_RATE,
     TerrainType, SpeciesKind, Season, SPECIES_PARAMS, Role,
     CAMP_INIT_FOOD, CAMP_INIT_CAPACITY, CAMP_TERRITORY_RADIUS,
+    WATER_TERRAINS,
 )
 from ecs.components import (
     Position, Vitality, Species, Behavior, Reproduction, Health,
@@ -197,7 +198,9 @@ class World:
     def rebuild_water_adjacency(self) -> None:
         """Recompute the cached water-adjacency grid and flat terrain list."""
         self._terrain_flat = self.terrain.ravel().tolist()
-        water = self.terrain == int(TerrainType.WATER)
+        water = np.zeros((GRID_W, GRID_H), dtype=np.bool_)
+        for wt in WATER_TERRAINS:
+            water |= (self.terrain == wt)
         adj = np.zeros((GRID_W, GRID_H), dtype=np.bool_)
         adj[1:, :]  |= water[:-1, :]
         adj[:-1, :] |= water[1:, :]
@@ -216,8 +219,10 @@ class World:
         if not (0 <= x < GRID_W and 0 <= y < GRID_H):
             return False
         t = self._terrain_at(x, y)
-        if t == int(TerrainType.WATER):
-            return False
+        if t == int(TerrainType.RIVER):
+            return True   # rivers are passable
+        if t in WATER_TERRAINS:
+            return False  # pond / lake / ocean / generic water
         if t == int(TerrainType.MOUNTAIN):
             return kind == SpeciesKind.DEER or kind == SpeciesKind.HUMAN
         if kind != SpeciesKind.HUMAN and (x, y) in self.camp_positions:

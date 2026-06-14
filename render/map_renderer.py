@@ -169,6 +169,8 @@ class TileMapRenderer:
             TerrainType.GRASSLAND: "草地", TerrainType.FOREST: "森林",
             TerrainType.WATER: "水域", TerrainType.DESERT: "沙漠",
             TerrainType.MOUNTAIN: "山地", TerrainType.SNOW: "雪地",
+            TerrainType.POND: "水潭", TerrainType.RIVER: "河流",
+            TerrainType.LAKE: "湖泊", TerrainType.OCEAN: "大海",
         }
         lines = [f"({gx},{gy})"]
         t = TerrainType(world.terrain[gx, gy])

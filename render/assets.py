@@ -7,7 +7,7 @@ No external image files required.
 import numpy as np
 import pygame
 
-from config import TILE_SIZE, TerrainType, SpeciesKind, Role, TERRAIN_COLORS
+from config import TILE_SIZE, TerrainType, SpeciesKind, Role, TERRAIN_COLORS, WATER_TERRAINS
 
 
 def generate_assets() -> dict:
@@ -41,8 +41,8 @@ def _gen_terrain_tiles() -> dict:
             _texture_grass(surf, rng)
         elif t_type == TerrainType.FOREST:
             _texture_forest(surf, rng)
-        elif t_type == TerrainType.WATER:
-            _texture_water(surf, rng)
+        elif t_type in WATER_TERRAINS:
+            _texture_water(surf, rng, base_color)
         elif t_type == TerrainType.DESERT:
             _texture_desert(surf, rng)
         elif t_type == TerrainType.MOUNTAIN:
@@ -93,8 +93,8 @@ def _texture_forest(surf, rng):
         _tex_pixel(surf, x, 14, trunk)
 
 
-def _texture_water(surf, rng):
-    c = TERRAIN_COLORS[TerrainType.WATER]
+def _texture_water(surf, rng, base_color=None):
+    c = base_color or TERRAIN_COLORS[TerrainType.WATER]
     light = (min(255, c[0]+25), min(255, c[1]+25), min(255, c[2]+15))
     # Wave lines
     for y in [3, 7, 11]:

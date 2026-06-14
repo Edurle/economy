@@ -12,6 +12,7 @@ from config import (
     GRID_W, GRID_H, TerrainType, GRASS_MAX,
     Role, TRIBE_INIT_HUNTERS, TRIBE_INIT_GATHERERS, TRIBE_INIT_BUILDERS,
     TRIBE_INIT_MINERS, TRIBE_INIT_SCHOLARS,
+    WATER_TERRAINS, POND_MAX_SIZE, OCEAN_MIN_SIZE, RIVER_MIN_ASPECT,
 )
 from ecs.world import World
 from ecs.components import SpeciesKind
@@ -57,6 +58,16 @@ def generate_terrain(world: World, seed: int = 42) -> None:
     m_min, m_max = moisture.min(), moisture.max()
     moisture = (moisture - m_min) / (m_max - m_min + 1e-9)
 
+    # Edge falloff: force ocean around all 4 map edges
+    xs = np.arange(GRID_W)
+    ys = np.arange(GRID_H)
+    dist_x = np.minimum(xs, GRID_W - 1 - xs)
+    dist_y = np.minimum(ys, GRID_H - 1 - ys)
+    dist = np.minimum(dist_x[:, None], dist_y[None, :]).astype(np.float32)
+    edge_margin = max(8, GRID_W // 10)
+    t = np.clip(dist / edge_margin, 0, 1)
+    elevation *= t * t * (3 - 2 * t)  # smoothstep
+
     for x in range(GRID_W):
         for y in range(GRID_H):
             e = elevation[x, y]
@@ -82,6 +93,9 @@ def generate_terrain(world: World, seed: int = 42) -> None:
 
     # Remove tiny isolated puddles created by river widening
     _cleanup_isolated_water(world, min_size=3)
+
+    # Classify water bodies into POND / RIVER / LAKE / OCEAN
+    _classify_water_bodies(world)
 
     # Generate mineral deposits on mountain tiles
     _generate_deposits(world)
@@ -157,6 +171,52 @@ def _cleanup_isolated_water(world: World, min_size: int = 3) -> None:
                     world.terrain[cx, cy] = int(TerrainType.GRASSLAND)
 
 
+def _classify_water_bodies(world: World) -> None:
+    """Classify generic WATER tiles into POND/RIVER/LAKE/OCEAN by size and shape."""
+    water_int = int(TerrainType.WATER)
+    water_mask = (world.terrain == water_int)
+    visited = np.zeros_like(water_mask, dtype=bool)
+
+    for x0 in range(GRID_W):
+        for y0 in range(GRID_H):
+            if not water_mask[x0, y0] or visited[x0, y0]:
+                continue
+
+            # BFS to find the full connected component
+            queue = [(x0, y0)]
+            visited[x0, y0] = True
+            component = []
+            min_x = max_x = x0
+            min_y = max_y = y0
+            while queue:
+                cx, cy = queue.pop()
+                component.append((cx, cy))
+                min_x = min(min_x, cx); max_x = max(max_x, cx)
+                min_y = min(min_y, cy); max_y = max(max_y, cy)
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < GRID_W and 0 <= ny < GRID_H and water_mask[nx, ny] and not visited[nx, ny]:
+                        visited[nx, ny] = True
+                        queue.append((nx, ny))
+
+            size = len(component)
+            if size < POND_MAX_SIZE:
+                new_type = int(TerrainType.POND)
+            elif size >= OCEAN_MIN_SIZE:
+                new_type = int(TerrainType.OCEAN)
+            else:
+                bw = max_x - min_x + 1
+                bh = max_y - min_y + 1
+                aspect = max(bw, bh) / max(1, min(bw, bh))
+                if aspect >= RIVER_MIN_ASPECT:
+                    new_type = int(TerrainType.RIVER)
+                else:
+                    new_type = int(TerrainType.LAKE)
+
+            for cx, cy in component:
+                world.terrain[cx, cy] = new_type
+
+
 def _carve_rivers(world: World, elevation: np.ndarray) -> None:
     """Carve rivers flowing downhill from mountains to the sea.
 
@@ -225,8 +285,8 @@ def _carve_rivers(world: World, elevation: np.ndarray) -> None:
             if world.terrain[cx, cy] == int(TerrainType.WATER):
                 break
 
-            # Carve water along the path
-            world.terrain[cx, cy] = int(TerrainType.WATER)
+            # Carve river along the path (mark as RIVER so it's distinguishable from ocean)
+            world.terrain[cx, cy] = int(TerrainType.RIVER)
             path.append((cx, cy))
 
         # Widen rivers on flat terrain
@@ -237,7 +297,7 @@ def _carve_rivers(world: World, elevation: np.ndarray) -> None:
                         nx, ny = px + dx, py + dy
                         if world.in_bounds(nx, ny) and world.terrain[nx, ny] == int(TerrainType.GRASSLAND):
                             if rng.random() < 0.25:
-                                world.terrain[nx, ny] = int(TerrainType.WATER)
+                                world.terrain[nx, ny] = int(TerrainType.RIVER)
 
 
 def populate_initial(world: World) -> None:
@@ -311,7 +371,7 @@ def _spawn_initial_tribe(world: World) -> None:
             for dy in range(-3, 4):
                 nx, ny = x + dx, y + dy
                 if world.in_bounds(nx, ny):
-                    if world.terrain[nx, ny] == TerrainType.WATER:
+                    if int(world.terrain[nx, ny]) in WATER_TERRAINS:
                         score += 3
                     elif world.terrain[nx, ny] == TerrainType.GRASSLAND:
                         score += 1

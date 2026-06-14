@@ -39,6 +39,10 @@ TERRAIN_LABELS = {
     TerrainType.DESERT: "沙漠",
     TerrainType.MOUNTAIN: "山地",
     TerrainType.SNOW: "雪地",
+    TerrainType.POND: "水潭",
+    TerrainType.RIVER: "河流",
+    TerrainType.LAKE: "湖泊",
+    TerrainType.OCEAN: "大海",
 }
 
 

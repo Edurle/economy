@@ -17,7 +17,8 @@ MINI_H = GRID_H * MINI_TILE
 MINI_RIGHT = MINI_W + 16      # x offset for content beside minimap
 
 # Pre-build a lookup table: terrain int -> RGB uint8 array (3,)
-_TERRAIN_LUT = np.zeros((6, 3), dtype=np.uint8)
+_LUT_SIZE = max(int(t) for t in TERRAIN_COLORS) + 1
+_TERRAIN_LUT = np.zeros((_LUT_SIZE, 3), dtype=np.uint8)
 for _t, _c in TERRAIN_COLORS.items():
     _TERRAIN_LUT[int(_t)] = _c
 

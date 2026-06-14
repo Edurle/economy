@@ -4,6 +4,7 @@ import numpy as np
 
 from config import (
     SEASON_LENGTH, GRID_W, GRID_H, Season, SEASON_NAMES, TerrainType,
+    WATER_TERRAINS,
 )
 from ecs.world import World
 
@@ -36,7 +37,7 @@ class SeasonSystem:
                 world.snow_edge += 1
                 for x in range(GRID_W):
                     y = world.snow_edge - 1
-                    if world.terrain[x, y] not in (TerrainType.WATER, TerrainType.MOUNTAIN):
+                    if int(world.terrain[x, y]) not in WATER_TERRAINS and world.terrain[x, y] != TerrainType.MOUNTAIN:
                         world.terrain[x, y] = TerrainType.SNOW
         elif world.snow_edge > 0:
             # Gradual snow recede in non-winter

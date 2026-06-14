@@ -34,10 +34,23 @@ SEASON_LENGTH = 50            # ticks per season
 class TerrainType(IntEnum):
     GRASSLAND = 0
     FOREST    = 1
-    WATER     = 2
+    WATER     = 2    # generic (pre-classification / god-mode)
     DESERT    = 3
     MOUNTAIN  = 4
     SNOW      = 5
+    POND      = 6
+    RIVER     = 7
+    LAKE      = 8
+    OCEAN     = 9
+
+WATER_TERRAINS = frozenset(int(t) for t in (
+    TerrainType.WATER, TerrainType.POND, TerrainType.RIVER,
+    TerrainType.LAKE, TerrainType.OCEAN,
+))
+
+POND_MAX_SIZE  = 20
+OCEAN_MIN_SIZE = 200
+RIVER_MIN_ASPECT = 3.0
 
 class SpeciesKind(IntEnum):
     RABBIT = 0
@@ -286,6 +299,10 @@ TERRAIN_COLORS = {
     TerrainType.DESERT:    (230, 210, 140),
     TerrainType.MOUNTAIN:  (130, 120, 115),
     TerrainType.SNOW:      (230, 240, 245),
+    TerrainType.POND:      (80, 180, 180),
+    TerrainType.RIVER:     (80, 160, 220),
+    TerrainType.LAKE:      (50, 120, 190),
+    TerrainType.OCEAN:     (30, 80,  150),
 }
 
 FIRE_COLOR = (255, 80, 0)
