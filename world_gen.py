@@ -80,6 +80,9 @@ def generate_terrain(world: World, seed: int = 42) -> None:
     # Carve rivers from mountains to the sea
     _carve_rivers(world, elevation)
 
+    # Remove tiny isolated puddles created by river widening
+    _cleanup_isolated_water(world, min_size=3)
+
     # Generate mineral deposits on mountain tiles
     _generate_deposits(world)
 
@@ -129,65 +132,112 @@ def _smooth_water(world: World) -> None:
                 world.terrain[x, y] = TerrainType.GRASSLAND
 
 
-def _carve_rivers(world: World, elevation: np.ndarray) -> None:
-    """Carve rivers flowing downhill from mountains to the sea."""
-    rng = np.random.default_rng()
-    n_rivers = max(10, GRID_W // 12)
+def _cleanup_isolated_water(world: World, min_size: int = 3) -> None:
+    """Remove tiny isolated water bodies (fewer than min_size connected tiles)."""
+    water_mask = (world.terrain == int(TerrainType.WATER))
+    visited = np.zeros_like(water_mask, dtype=bool)
 
-    # Find mountain tiles as potential river sources
-    mountain_tiles = np.argwhere(world.terrain == TerrainType.MOUNTAIN)
+    for x in range(GRID_W):
+        for y in range(GRID_H):
+            if not water_mask[x, y] or visited[x, y]:
+                continue
+            queue = [(x, y)]
+            visited[x, y] = True
+            component = []
+            while queue:
+                cx, cy = queue.pop()
+                component.append((cx, cy))
+                for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    nx, ny = cx + dx, cy + dy
+                    if 0 <= nx < GRID_W and 0 <= ny < GRID_H and water_mask[nx, ny] and not visited[nx, ny]:
+                        visited[nx, ny] = True
+                        queue.append((nx, ny))
+            if len(component) < min_size:
+                for cx, cy in component:
+                    world.terrain[cx, cy] = int(TerrainType.GRASSLAND)
+
+
+def _carve_rivers(world: World, elevation: np.ndarray) -> None:
+    """Carve rivers flowing downhill from mountains to the sea.
+
+    Uses smoothed elevation for routing to avoid tiny local minima.
+    Rivers can overflow depressions (fill-and-spill) to produce long paths.
+    """
+    rng = np.random.default_rng()
+    n_rivers = max(15, GRID_W // 8)
+
+    # Smooth elevation with a 5x5 box filter to remove small dips
+    padded = np.pad(elevation, 2, mode='edge')
+    river_elev = np.zeros_like(elevation)
+    for dx in range(5):
+        for dy in range(5):
+            river_elev += padded[dx:dx + GRID_W, dy:dy + GRID_H]
+    river_elev /= 25.0
+
+    # Pick river sources: the highest mountain peaks
+    mountain_tiles = np.argwhere(world.terrain == int(TerrainType.MOUNTAIN))
     if len(mountain_tiles) == 0:
         return
 
-    for _ in range(n_rivers):
-        idx = rng.integers(len(mountain_tiles))
-        cx, cy = int(mountain_tiles[idx][0]), int(mountain_tiles[idx][1])
+    mountain_elevs = river_elev[mountain_tiles[:, 0], mountain_tiles[:, 1]]
+    # Sort mountains by elevation (highest first), pick top sources spread across the map
+    sorted_idx = np.argsort(-mountain_elevs)
+    sources = []
+    for si in sorted_idx:
+        mx, my = int(mountain_tiles[si][0]), int(mountain_tiles[si][1])
+        # Ensure sources are spread out (min 15 tiles apart)
+        too_close = any(abs(mx - sx) + abs(my - sy) < 15 for sx, sy in sources)
+        if not too_close:
+            sources.append((mx, my))
+        if len(sources) >= n_rivers:
+            break
 
+    DIRS8 = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    for src_x, src_y in sources:
+        cx, cy = src_x, src_y
+        visited = {(cx, cy)}
         path = []
-        for _step in range(300):
-            # Find lowest neighbour (8-directional for natural curves)
-            best_nx, best_ny = cx, cy
-            best_elev = elevation[cx, cy]
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    if dx == 0 and dy == 0:
-                        continue
-                    nx, ny = cx + dx, cy + dy
-                    if not world.in_bounds(nx, ny):
-                        continue
-                    e = elevation[nx, ny]
-                    if e < best_elev:
-                        best_elev = e
-                        best_nx, best_ny = nx, ny
 
-            if best_nx == cx and best_ny == cy:
-                # Stuck in local minimum — create a small lake
-                for dx in range(-1, 2):
-                    for dy in range(-1, 2):
-                        nx, ny = cx + dx, cy + dy
-                        if world.in_bounds(nx, ny) and world.terrain[nx, ny] != TerrainType.MOUNTAIN:
-                            world.terrain[nx, ny] = TerrainType.WATER
+        for _step in range(500):
+            # Find lowest unvisited neighbour
+            best_nx, best_ny = -1, -1
+            best_elev = float('inf')
+            for dx, dy in DIRS8:
+                nx, ny = cx + dx, cy + dy
+                if not world.in_bounds(nx, ny):
+                    continue
+                if (nx, ny) in visited:
+                    continue
+                e = river_elev[nx, ny]
+                if e < best_elev:
+                    best_elev = e
+                    best_nx, best_ny = nx, ny
+
+            if best_nx < 0:
+                # All neighbours visited — stop
                 break
 
             cx, cy = best_nx, best_ny
+            visited.add((cx, cy))
 
             # Reached existing natural water — river flows into sea/lake
-            if world.terrain[cx, cy] == TerrainType.WATER:
+            if world.terrain[cx, cy] == int(TerrainType.WATER):
                 break
 
             # Carve water along the path
-            world.terrain[cx, cy] = TerrainType.WATER
+            world.terrain[cx, cy] = int(TerrainType.WATER)
             path.append((cx, cy))
 
-        # Widen river on flat terrain (every 3rd tile gets a side branch)
-        if len(path) > 5:
+        # Widen rivers on flat terrain
+        if len(path) > 8:
             for i, (px, py) in enumerate(path):
-                if i % 3 == 0 and world.terrain[px, py] == TerrainType.WATER:
+                if i % 4 == 0:
                     for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                         nx, ny = px + dx, py + dy
-                        if world.in_bounds(nx, ny) and world.terrain[nx, ny] == TerrainType.GRASSLAND:
-                            if rng.random() < 0.3:
-                                world.terrain[nx, ny] = TerrainType.WATER
+                        if world.in_bounds(nx, ny) and world.terrain[nx, ny] == int(TerrainType.GRASSLAND):
+                            if rng.random() < 0.25:
+                                world.terrain[nx, ny] = int(TerrainType.WATER)
 
 
 def populate_initial(world: World) -> None:
